@@ -1,0 +1,11 @@
+.card-icon { pointer-events: none; color: #9ec6ed; }
+.group > .card-icon { color: #8fd7c2; }
+.module > .card-icon { color: #c2baf4; }
+.hover-flow { fill: none; stroke: #d4f4ff; stroke-width: 2.6; stroke-dasharray: 2 11; stroke-linecap: round; pointer-events: none; animation: flow-back .52s linear infinite; }
+@keyframes flow-back { to { stroke-dashoffset: 13; } }
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  .card > .preview-content { opacity: .86; transition: opacity 140ms cubic-bezier(.23, 1, .32, 1); }
+  .card:hover > .preview-content { opacity: 1; }
+  .tools button { transition: transform 125ms cubic-bezier(.23, 1, .32, 1); }
+  .tools button:hover:not(:disabled) { transform: translateY(-1px); }
+}

@@ -1,0 +1,26 @@
+#help-dialog { width: min(450px, calc(100vw - 24px)); background: #141e2a; color: inherit; border: 1px solid #40546a; border-radius: 10px; }
+#help-dialog header { display: flex; justify-content: space-between; align-items: center; }
+#help-dialog h2 { font-size: 16px; }
+#help-dialog dl { display: grid; grid-template-columns: minmax(0, max-content) minmax(0, 1fr); gap: 9px 16px; align-items: baseline; }
+#help-dialog dd { margin: 0; }
+.viewer-settings { display: grid; gap: 8px; margin: 0; padding: 8px 12px 12px; border: 1px solid #40546a; border-radius: 6px; }
+.viewer-settings label { display: flex; align-items: center; gap: 7px; }
+.viewer-settings input { margin: 0; accent-color: #a5ceff; }
+.key-combination { white-space: nowrap; }
+kbd {
+  display: inline-block;
+  min-width: 1.9em;
+  padding: 2px 5px;
+  border: 1px solid #55728e;
+  border-bottom: 2px solid #55728e;
+  border-radius: 5px;
+  background: #24364a;
+  color: #eef6ff;
+  font: 600 12px/1.35 ui-monospace, Consolas, monospace;
+  text-align: center;
+  white-space: nowrap;
+}
+@media (max-width: 420px) {
+  #help-dialog dl { grid-template-columns: minmax(0, 1fr); row-gap: 6px; }
+  #help-dialog dd + dt { margin-top: 6px; }
+}

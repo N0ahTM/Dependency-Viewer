@@ -1,0 +1,25 @@
+#details, dialog, #search-results {
+  transition: opacity 160ms cubic-bezier(.23, 1, .32, 1),
+    transform 160ms cubic-bezier(.23, 1, .32, 1),
+    display 160ms allow-discrete, overlay 160ms allow-discrete;
+}
+#details[hidden], dialog:not([open]), #search-results[hidden] { opacity: 0; }
+#details[hidden] { transform: translateX(12px); }
+dialog:not([open]) { transform: translateY(6px) scale(.98); }
+#search-results[hidden] { transform: translateY(-4px); pointer-events: none; }
+dialog::backdrop { background: #090f19b0; transition: opacity 160ms, display 160ms allow-discrete, overlay 160ms allow-discrete; }
+dialog:not([open])::backdrop { opacity: 0; }
+@starting-style {
+  #details:not([hidden]) { opacity: 0; transform: translateX(12px); }
+  dialog[open] { opacity: 0; transform: translateY(6px) scale(.98); }
+  dialog[open]::backdrop { opacity: 0; }
+  #search-results:not([hidden]) { opacity: 0; transform: translateY(-4px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .view-tabs button { transition: none; }
+  #details, dialog, dialog::backdrop, #search-results { transition-duration: 100ms; }
+  #details[hidden], dialog:not([open]), #search-results[hidden] { transform: none; }
+  @starting-style {
+    #details:not([hidden]), dialog[open], #search-results:not([hidden]) { transform: none; }
+  }
+}

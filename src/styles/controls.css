@@ -1,0 +1,40 @@
+.atlas-controls { position: fixed; left: 16px; bottom: 61px; display: flex; flex-wrap: wrap; gap: 5px; max-width: min(500px, calc(100% - 32px)); z-index: 2; }
+.atlas-controls button[aria-pressed="true"] { border-color: #9acaeb; background: #2a415a; }
+.atlas-help { flex-basis: 100%; color: #c6daee; background: #141e2a; padding: 6px 9px; border-radius: 7px; }
+.tools { position: fixed; top: 16px; left: 16px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; max-width: calc(100vw - 32px); }
+.tools { z-index: 2; }
+.view-tabs { display: inline-flex; padding: 2px; gap: 2px; border: 1px solid #40546a; border-radius: 10px; background: #141e2a; }
+.view-tabs button { background: transparent; border-color: transparent; padding: 5px 8px; font-size: 12px; }
+.view-tabs button[aria-selected="true"] { background: #2b425a; border-color: #577e9e; color: #f0f7ff; }
+.view-tabs button:hover { background: #24374a; }
+.view-tabs button { transition: background-color 125ms ease, border-color 125ms ease; }
+.tools button[aria-pressed="true"] { border-color: #9acaeb; background: #2a415a; }
+button:disabled { opacity: .42; cursor: default; }
+#status { color: #bacfe4; background: #141e2a; border-radius: 7px; }
+#status:not(:empty) { padding: 6px 8px; }
+#minimap { position: fixed; right: 16px; bottom: 58px; width: 176px; height: 116px; border: 1px solid #40546a; border-radius: 8px; cursor: crosshair; }
+@media (max-width: 720px) { #minimap { bottom: 160px; } }
+.boundary { position: fixed; bottom: 60px; left: 16px; display: flex; flex-wrap: wrap; gap: 6px; }
+
+.navigation, .zoom {
+  position: fixed;
+  bottom: 16px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.navigation { left: 16px; max-width: calc(100% - 175px); }
+.zoom { right: 16px; }
+#breadcrumb { background: #141e2a; padding: 8px 12px; border-radius: 8px; overflow-wrap: anywhere; }
+button {
+  color: inherit;
+  font: inherit;
+  border: 1px solid #40546a;
+  border-radius: 8px;
+  background: #1b2939;
+  padding: 7px 10px;
+  cursor: pointer;
+}
+button:hover { background: #293e54; }
+button:focus-visible { outline: 2px solid #a9e5ff; outline-offset: 2px; }

@@ -1,0 +1,17 @@
+{
+  "format": "dependency-viewer",
+  "version": 1,
+  "name": "C/C++ · Include Cycle",
+  "nodes": [
+    { "id": "demo", "kind": "project", "label": "Demo" },
+    { "id": "core", "kind": "group", "parent": "demo", "label": "Core" },
+    { "id": "a", "kind": "item", "parent": "core", "label": "a.hpp", "sources": [{ "path": "src/a.hpp", "line": 1 }] },
+    { "id": "b", "kind": "item", "parent": "core", "label": "b.hpp", "sources": [{ "path": "src/b.hpp", "line": 1 }] },
+    { "id": "main", "kind": "item", "parent": "core", "label": "main.cpp", "sources": [{ "path": "src/main.cpp", "line": 1 }] }
+  ],
+  "edges": [
+    { "source": "a", "target": "b", "kind": "include", "sources": [{ "path": "src/a.hpp", "line": 3 }] },
+    { "source": "b", "target": "a", "kind": "include", "sources": [{ "path": "src/b.hpp", "line": 3 }] },
+    { "source": "main", "target": "a", "kind": "include", "sources": [{ "path": "src/main.cpp", "line": 1 }] }
+  ]
+}

@@ -1,0 +1,53 @@
+spec:
+  inputs:
+    viewer_project_id:
+      type: string
+      description: Numeric GitLab project ID of the Viewer, or empty for a vendored copy.
+      default: ''
+      regex: '^([1-9][0-9]*)?$'
+    viewer_revision:
+      type: string
+      description: Full commit SHA for a remote Viewer, or empty for a vendored copy.
+      default: ''
+      regex: '^([0-9a-f]{40})?$'
+    stage:
+      type: string
+      default: .pre
+---
+dependency-viewer:
+  stage: $[[ inputs.stage ]]
+  image: python:3.12-bookworm
+  inherit:
+    default: false
+  interruptible: true
+  needs: []
+  script:
+    - |
+      set -eu
+      viewer_dir="$CI_PROJECT_DIR/.dependency-viewer"
+      revision='$[[ inputs.viewer_revision ]]'
+      project_id='$[[ inputs.viewer_project_id ]]'
+      if [ -n "$project_id$revision" ]; then
+        if [ -z "$project_id" ] || [ -z "$revision" ]; then
+          echo 'Set both viewer_project_id and viewer_revision.' >&2
+          exit 1
+        fi
+        viewer_dir="$(mktemp -d)"
+        trap 'rm -rf -- "$viewer_dir"' EXIT
+        curl --fail --silent --show-error --retry 3 \
+          --header "JOB-TOKEN: $CI_JOB_TOKEN" \
+          --output "$viewer_dir/viewer.tar.gz" \
+          "$CI_API_V4_URL/projects/$project_id/repository/archive.tar.gz?sha=$revision"
+        tar -xzf "$viewer_dir/viewer.tar.gz" -C "$viewer_dir" --strip-components=1
+      fi
+      cd "$CI_PROJECT_DIR"
+      python "$viewer_dir/tools/scan.py" "$CI_PROJECT_DIR" \
+        --name "$CI_PROJECT_NAME" \
+        --output dependency-viewer-report/graph.json \
+        --html dependency-viewer-report/index.html
+  artifacts:
+    name: "dependency-viewer-$CI_PROJECT_PATH_SLUG-$CI_COMMIT_SHORT_SHA"
+    paths:
+      - dependency-viewer-report/graph.json
+      - dependency-viewer-report/index.html
+    expire_in: 14 days

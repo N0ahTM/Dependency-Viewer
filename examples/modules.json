@@ -1,0 +1,17 @@
+{
+  "format": "dependency-viewer",
+  "version": 1,
+  "name": "C++ · Module Imports",
+  "nodes": [
+    { "id": "app", "kind": "project", "label": "App" },
+    { "id": "math", "kind": "project", "label": "Math" },
+    { "id": "app-ui", "kind": "group", "parent": "app", "label": "UI" },
+    { "id": "math-core", "kind": "group", "parent": "math", "label": "Core" },
+    { "id": "app.main", "kind": "item", "parent": "app-ui", "label": "App.Main" },
+    { "id": "math.vector", "kind": "item", "parent": "math-core", "label": "Math.Vector" }
+  ],
+  "edges": [
+    { "source": "app", "target": "math", "kind": "link", "sources": [{ "path": "CMakeLists.txt", "line": 12 }] },
+    { "source": "app.main", "target": "math.vector", "kind": "import", "sources": [{ "path": "app/main.ixx", "line": 4 }] }
+  ]
+}

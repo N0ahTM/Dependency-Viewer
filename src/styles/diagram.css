@@ -1,0 +1,51 @@
+.diagram { display: block; width: 100%; height: 100%; touch-action: none; cursor: grab; }
+.atlas { display: block; width: 100%; height: 100%; touch-action: none; cursor: grab; }
+.atlas-surface { position: absolute; pointer-events: none; transform-origin: 0 0; }
+.atlas-input { position: absolute; inset: 0; touch-action: none; cursor: grab; }
+.atlas-input:active { cursor: grabbing; }
+.atlas-tooltip { position: absolute; max-width: min(300px, calc(100% - 16px)); overflow-wrap: anywhere; padding: 6px 9px; background: #192838; border: 1px solid #52708b; border-radius: 6px; color: #e5f0fb; pointer-events: none; font-size: 12px; }
+.departing, .graph-scene > .diagram { position: absolute; inset: 0; }
+.departing { pointer-events: none; }
+.in-flight > rect, .in-flight .node-info { visibility: hidden; }
+.diagram:active { cursor: grabbing; }
+.card, .node-info, .wire { cursor: pointer; outline: none; }
+.card, .card text { -webkit-user-select: none; user-select: none; }
+.box { fill: #172434; stroke: #638caf; stroke-width: 1.4; }
+.group .box { fill: #172a2c; stroke: #73a99d; }
+.module .box { fill: #21253a; stroke: #969cc7; }
+.label { fill: #f0f5fb; font: 600 15px ui-monospace, Consolas, monospace; }
+.caption { fill: #a3b7cb; font-size: 11px; }
+.label, .caption, .miniature, .preview-box, .preview-content { pointer-events: none; }
+.preview-box { fill: #101c23; stroke: #38585a; }
+.miniature .label { font-size: 17px; }
+.labels-small .miniature .label { display: none; }
+.miniature .line { stroke-width: 4; }
+.card:hover > .box, .card:focus-visible > .box, .card.selected > .box, .card.endpoint > .box { stroke: #d0f5ff; stroke-width: 2.3; }
+.card.wheel-preview > .box { stroke: #d0f5ff; stroke-width: 3; }
+.card.wheel-preview > .preview-box { stroke: #94c5e7; stroke-width: 1.6; }
+#back.wheel-preview { border-color: #d0f5ff; background: #2b425a; }
+.card, .wire { transition: opacity 125ms cubic-bezier(0.23, 1, 0.32, 1); }
+.card.dimmed { opacity: .32; }
+.wire.dimmed { opacity: .14; }
+.wire.marked .line { stroke: #a9e5ff; stroke-width: 3; }
+.wire.related .line { stroke: #a9d3ef; }
+.node-info { opacity: 0; }
+.card:hover + .node-info, .node-info:hover, .node-info:focus-visible, .card:focus-visible + .node-info { opacity: 1; }
+@media (hover: none) { .node-info { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .card, .wire { transition: none; } }
+.node-info rect { fill: #25384a; stroke: #668196; }
+.node-info text { fill: #c7d9e9; text-anchor: middle; font-size: 13px; pointer-events: none; }
+.node-info:hover rect, .node-info:focus-visible rect { stroke: #d0f5ff; }
+.line { fill: none; stroke: #7396b8; stroke-width: 2; }
+.hit { fill: none; stroke: transparent; stroke-width: 14; }
+.wire:hover .line, .wire:focus-visible .line { stroke: #a9e5ff; stroke-width: 3.5; }
+.diagram.show-neighbors > .cards > .card:not(.hover-neighbor, .pinned, .pin-neighbor) { opacity: .32; }
+.diagram.show-neighbors > .wires > .wire:not(.hover-neighbor, .pinned) { opacity: .14; }
+.card.hover-neighbor, .wire.hover-neighbor, .card.pin-neighbor, .card.pinned, .wire.pinned { opacity: 1; }
+.card.pinned > .box { stroke: var(--pin-color); stroke-width: 3; }
+.wire.pinned > .line { stroke: var(--pin-color); stroke-width: 3; }
+.pulse { fill: #e0f7ff; pointer-events: none; }
+.tool-icon { width: 15px; height: 15px; vertical-align: -3px; margin-right: 5px; }
+.icon-button { display: inline-grid; place-items: center; min-width: 34px; min-height: 34px; padding: 6px; }
+.icon-button .tool-icon { margin: 0; vertical-align: 0; }
+.copy.icon-button { min-width: 25px; min-height: 25px; }

@@ -1,0 +1,537 @@
+{
+  "format": "dependency-viewer",
+  "version": 1,
+  "name": "Workbench Demo",
+  "nodes": [
+    {
+      "id": "workbench",
+      "kind": "project",
+      "label": "Workbench"
+    },
+    {
+      "id": "workbench.workspace",
+      "parent": "workbench",
+      "kind": "group",
+      "label": "Workspace"
+    },
+    {
+      "id": "workbench.workspace.editor",
+      "parent": "workbench.workspace",
+      "kind": "item",
+      "label": "Editor",
+      "sources": [
+        {
+          "path": "src/workbench/workspace/editor.cpp",
+          "line": 1
+        }
+      ]
+    },
+    {
+      "id": "workbench.workspace.documents",
+      "parent": "workbench.workspace",
+      "kind": "item",
+      "label": "Documents",
+      "sources": [
+        {
+          "path": "src/workbench/workspace/documents.cpp",
+          "line": 1
+        }
+      ]
+    },
+    {
+      "id": "workbench.commands",
+      "parent": "workbench",
+      "kind": "group",
+      "label": "Commands"
+    },
+    {
+      "id": "workbench.commands.run",
+      "parent": "workbench.commands",
+      "kind": "item",
+      "label": "Run",
+      "sources": [
+        {
+          "path": "src/workbench/commands/run.cpp",
+          "line": 1
+        }
+      ]
+    },
+    {
+      "id": "workbench.commands.export",
+      "parent": "workbench.commands",
+      "kind": "item",
+      "label": "Export",
+      "sources": [
+        {
+          "path": "src/workbench/commands/export.cpp",
+          "line": 1
+        }
+      ]
+    },
+    {
+      "id": "processing",
+      "kind": "project",
+      "label": "Processing"
+    },
+    {
+      "id": "processing.pipeline",
+      "parent": "processing",
+      "kind": "group",
+      "label": "Pipeline"
+    },
+    {
+      "id": "processing.pipeline.scheduler",
+      "parent": "processing.pipeline",
+      "kind": "item",
+      "label": "Scheduler",
+      "sources": [
+        {
+          "path": "src/processing/pipeline/scheduler.cpp",
+          "line": 1
+        }
+      ]
+    },
+    {
+      "id": "processing.pipeline.stages",
+      "parent": "processing.pipeline",
+      "kind": "item",
+      "label": "Stages",
+      "sources": [
+        {
+          "path": "src/processing/pipeline/stages.cpp",
+          "line": 1
+        }
+      ]
+    },
+    {
+      "id": "processing.validation",
+      "parent": "processing",
+      "kind": "group",
+      "label": "Validation"
+    },
+    {
+      "id": "processing.validation.rules",
+      "parent": "processing.validation",
+      "kind": "item",
+      "label": "Rules",
+      "sources": [
+        {
+          "path": "src/processing/validation/rules.cpp",
+          "line": 1
+        }
+      ]
+    },
+    {
+      "id": "processing.validation.report",
+      "parent": "processing.validation",
+      "kind": "item",
+      "label": "Report",
+      "sources": [
+        {
+          "path": "src/processing/validation/report.cpp",
+          "line": 1
+        }
+      ]
+    },
+    {
+      "id": "persistence",
+      "kind": "project",
+      "label": "Persistence"
+    },
+    {
+      "id": "persistence.records",
+      "parent": "persistence",
+      "kind": "group",
+      "label": "Records"
+    },
+    {
+      "id": "persistence.records.index",
+      "parent": "persistence.records",
+      "kind": "item",
+      "label": "Index",
+      "sources": [
+        {
+          "path": "src/persistence/records/index.cpp",
+          "line": 1
+        }
+      ]
+    },
+    {
+      "id": "persistence.records.store",
+      "parent": "persistence.records",
+      "kind": "item",
+      "label": "Store",
+      "sources": [
+        {
+          "path": "src/persistence/records/store.cpp",
+          "line": 1
+        }
+      ]
+    },
+    {
+      "id": "persistence.cache",
+      "parent": "persistence",
+      "kind": "group",
+      "label": "Cache"
+    },
+    {
+      "id": "persistence.cache.memory",
+      "parent": "persistence.cache",
+      "kind": "item",
+      "label": "Memory",
+      "sources": [
+        {
+          "path": "src/persistence/cache/memory.cpp",
+          "line": 1
+        }
+      ]
+    },
+    {
+      "id": "persistence.cache.eviction",
+      "parent": "persistence.cache",
+      "kind": "item",
+      "label": "Eviction",
+      "sources": [
+        {
+          "path": "src/persistence/cache/eviction.cpp",
+          "line": 1
+        }
+      ]
+    },
+    {
+      "id": "formats",
+      "kind": "project",
+      "label": "Formats"
+    },
+    {
+      "id": "formats.text",
+      "parent": "formats",
+      "kind": "group",
+      "label": "Text"
+    },
+    {
+      "id": "formats.text.reader",
+      "parent": "formats.text",
+      "kind": "item",
+      "label": "Reader",
+      "sources": [
+        {
+          "path": "src/formats/text/reader.cpp",
+          "line": 1
+        }
+      ]
+    },
+    {
+      "id": "formats.text.writer",
+      "parent": "formats.text",
+      "kind": "item",
+      "label": "Writer",
+      "sources": [
+        {
+          "path": "src/formats/text/writer.cpp",
+          "line": 1
+        }
+      ]
+    },
+    {
+      "id": "formats.binary",
+      "parent": "formats",
+      "kind": "group",
+      "label": "Binary"
+    },
+    {
+      "id": "formats.binary.encoder",
+      "parent": "formats.binary",
+      "kind": "item",
+      "label": "Encoder",
+      "sources": [
+        {
+          "path": "src/formats/binary/encoder.cpp",
+          "line": 1
+        }
+      ]
+    },
+    {
+      "id": "formats.binary.decoder",
+      "parent": "formats.binary",
+      "kind": "item",
+      "label": "Decoder",
+      "sources": [
+        {
+          "path": "src/formats/binary/decoder.cpp",
+          "line": 1
+        }
+      ]
+    },
+    {
+      "id": "core",
+      "kind": "project",
+      "label": "Core"
+    },
+    {
+      "id": "core.collections",
+      "parent": "core",
+      "kind": "group",
+      "label": "Collections"
+    },
+    {
+      "id": "core.collections.queue",
+      "parent": "core.collections",
+      "kind": "item",
+      "label": "Queue",
+      "sources": [
+        {
+          "path": "src/core/collections/queue.cpp",
+          "line": 1
+        }
+      ]
+    },
+    {
+      "id": "core.collections.map",
+      "parent": "core.collections",
+      "kind": "item",
+      "label": "Map",
+      "sources": [
+        {
+          "path": "src/core/collections/map.cpp",
+          "line": 1
+        }
+      ]
+    },
+    {
+      "id": "core.diagnostics",
+      "parent": "core",
+      "kind": "group",
+      "label": "Diagnostics"
+    },
+    {
+      "id": "core.diagnostics.logger",
+      "parent": "core.diagnostics",
+      "kind": "item",
+      "label": "Logger",
+      "sources": [
+        {
+          "path": "src/core/diagnostics/logger.cpp",
+          "line": 1
+        }
+      ]
+    },
+    {
+      "id": "core.diagnostics.trace",
+      "parent": "core.diagnostics",
+      "kind": "item",
+      "label": "Trace",
+      "sources": [
+        {
+          "path": "src/core/diagnostics/trace.cpp",
+          "line": 1
+        }
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "source": "workbench.workspace.editor",
+      "target": "workbench.workspace.documents",
+      "kind": "include"
+    },
+    {
+      "source": "workbench.commands.run",
+      "target": "workbench.commands.export",
+      "kind": "include"
+    },
+    {
+      "source": "workbench.workspace.editor",
+      "target": "workbench.commands.run",
+      "kind": "include"
+    },
+    {
+      "source": "workbench",
+      "target": "processing",
+      "kind": "link",
+      "sources": [
+        {
+          "path": "src/workbench/CMakeLists.txt",
+          "line": 10
+        }
+      ]
+    },
+    {
+      "source": "workbench.commands.run",
+      "target": "processing.pipeline.scheduler",
+      "kind": "import"
+    },
+    {
+      "source": "workbench",
+      "target": "persistence",
+      "kind": "link",
+      "sources": [
+        {
+          "path": "src/workbench/CMakeLists.txt",
+          "line": 10
+        }
+      ]
+    },
+    {
+      "source": "workbench.commands.run",
+      "target": "persistence.records.index",
+      "kind": "import"
+    },
+    {
+      "source": "workbench",
+      "target": "formats",
+      "kind": "link",
+      "sources": [
+        {
+          "path": "src/workbench/CMakeLists.txt",
+          "line": 10
+        }
+      ]
+    },
+    {
+      "source": "workbench.commands.run",
+      "target": "formats.text.reader",
+      "kind": "import"
+    },
+    {
+      "source": "processing.pipeline.scheduler",
+      "target": "processing.pipeline.stages",
+      "kind": "include"
+    },
+    {
+      "source": "processing.validation.rules",
+      "target": "processing.validation.report",
+      "kind": "include"
+    },
+    {
+      "source": "processing.pipeline.scheduler",
+      "target": "processing.validation.rules",
+      "kind": "include"
+    },
+    {
+      "source": "processing",
+      "target": "formats",
+      "kind": "link",
+      "sources": [
+        {
+          "path": "src/processing/CMakeLists.txt",
+          "line": 10
+        }
+      ]
+    },
+    {
+      "source": "processing.validation.rules",
+      "target": "formats.text.reader",
+      "kind": "import"
+    },
+    {
+      "source": "processing",
+      "target": "core",
+      "kind": "link",
+      "sources": [
+        {
+          "path": "src/processing/CMakeLists.txt",
+          "line": 10
+        }
+      ]
+    },
+    {
+      "source": "processing.validation.rules",
+      "target": "core.collections.queue",
+      "kind": "import"
+    },
+    {
+      "source": "persistence.records.index",
+      "target": "persistence.records.store",
+      "kind": "include"
+    },
+    {
+      "source": "persistence.cache.memory",
+      "target": "persistence.cache.eviction",
+      "kind": "include"
+    },
+    {
+      "source": "persistence.records.index",
+      "target": "persistence.cache.memory",
+      "kind": "include"
+    },
+    {
+      "source": "persistence",
+      "target": "formats",
+      "kind": "link",
+      "sources": [
+        {
+          "path": "src/persistence/CMakeLists.txt",
+          "line": 10
+        }
+      ]
+    },
+    {
+      "source": "persistence.cache.memory",
+      "target": "formats.text.reader",
+      "kind": "import"
+    },
+    {
+      "source": "persistence",
+      "target": "core",
+      "kind": "link",
+      "sources": [
+        {
+          "path": "src/persistence/CMakeLists.txt",
+          "line": 10
+        }
+      ]
+    },
+    {
+      "source": "persistence.cache.memory",
+      "target": "core.collections.queue",
+      "kind": "import"
+    },
+    {
+      "source": "formats.text.reader",
+      "target": "formats.text.writer",
+      "kind": "include"
+    },
+    {
+      "source": "formats.binary.encoder",
+      "target": "formats.binary.decoder",
+      "kind": "include"
+    },
+    {
+      "source": "formats.text.reader",
+      "target": "formats.binary.encoder",
+      "kind": "include"
+    },
+    {
+      "source": "formats",
+      "target": "core",
+      "kind": "link",
+      "sources": [
+        {
+          "path": "src/formats/CMakeLists.txt",
+          "line": 10
+        }
+      ]
+    },
+    {
+      "source": "formats.binary.encoder",
+      "target": "core.collections.queue",
+      "kind": "import"
+    },
+    {
+      "source": "core.collections.queue",
+      "target": "core.collections.map",
+      "kind": "include"
+    },
+    {
+      "source": "core.diagnostics.logger",
+      "target": "core.diagnostics.trace",
+      "kind": "include"
+    },
+    {
+      "source": "core.collections.queue",
+      "target": "core.diagnostics.logger",
+      "kind": "include"
+    }
+  ]
+}

@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dependency Viewer</title>
+  <!-- styles -->
+</head>
+<body>
+  <svg id="graph-background" aria-hidden="true">
+    <defs>
+      <pattern id="grid-tile" patternUnits="userSpaceOnUse" width="24" height="24" x="-6" y="-6" viewBox="0 0 2 2">
+        <circle cx=".5" cy=".5" r=".1"/>
+        <g class="grid-fine" opacity="0">
+          <circle cx="1.5" cy=".5" r=".1"/>
+          <circle cx=".5" cy="1.5" r=".1"/>
+          <circle cx="1.5" cy="1.5" r=".1"/>
+        </g>
+      </pattern>
+    </defs>
+    <rect width="100%" height="100%" fill="url(#grid-tile)"/>
+  </svg>
+  <main id="graph" aria-label="Dependency graph"></main>
+  <div id="search-bar" role="search">
+    <span id="search-glyph" aria-hidden="true"></span>
+    <input id="search-query" type="search" placeholder="Search modules, groups, or files" aria-label="Search graph" aria-controls="search-results" aria-expanded="false" autocomplete="off">
+    <kbd aria-hidden="true">/</kbd>
+    <div id="search-results" hidden></div>
+  </div>
+  <div class="tools" aria-label="Graph tools">
+    <div id="view-tabs" class="view-tabs" role="tablist" aria-label="Graph views">
+      <button id="graph-tab" type="button" role="tab" aria-controls="graph" aria-selected="true">Graph</button>
+      <button id="atlas-tab" type="button" role="tab" aria-controls="graph" aria-selected="false" tabindex="-1">Overview</button>
+    </div>
+    <button id="focus" type="button" aria-pressed="false" disabled>Focus</button>
+    <button id="depth" type="button" hidden>1 level</button>
+    <button id="path" type="button" aria-pressed="false" disabled>Path</button>
+    <button id="open-data" type="button"></button>
+    <button id="cycles" type="button"></button>
+    <button id="help" type="button"></button>
+    <input id="data-file" type="file" accept=".json,application/json" hidden>
+    <span id="status" role="status"></span>
+  </div>
+  <nav class="navigation" aria-label="Graph navigation">
+    <button id="back" type="button" hidden>← Back</button>
+    <span id="breadcrumb" aria-live="polite"></span>
+  </nav>
+  <div id="atlas-controls" class="atlas-controls" aria-label="Overview levels" hidden>
+    <button type="button" data-level="auto" aria-pressed="true">Auto</button>
+    <button type="button" data-level="0" aria-pressed="false">Libraries</button>
+    <button type="button" data-level="1" aria-pressed="false">Groups</button>
+    <button type="button" data-level="2" aria-pressed="false">Modules</button>
+    <button id="atlas-lines" type="button" aria-pressed="false" title="Show internal module connections when zooming in">Internal connections</button>
+  </div>
+  <div class="zoom" aria-label="View">
+    <button id="zoom-out" title="Zoom out" aria-label="Zoom out">−</button>
+    <button id="fit">Fit</button>
+    <button id="zoom-in" title="Zoom in" aria-label="Zoom in">+</button>
+  </div>
+  <canvas id="minimap" width="176" height="116" hidden aria-label="Overview minimap"></canvas>
+  <div id="boundary" class="boundary" aria-label="Graph boundaries" hidden></div>
+  <aside id="details" aria-labelledby="detail-title" hidden>
+    <header>
+      <h2 id="detail-title"></h2>
+      <button id="detail-close" aria-label="Close details">×</button>
+    </header>
+    <div id="detail-body"></div>
+  </aside>
+  <dialog id="help-dialog" aria-labelledby="help-title">
+    <header><h2 id="help-title">Keyboard shortcuts</h2><button id="help-close"></button></header>
+    <dl>
+      <dt><kbd>/</kbd> or <span class="key-combination"><kbd>Ctrl</kbd>/<kbd aria-label="Command key">⌘</kbd> + <kbd>F</kbd></span></dt><dd>Search</dd>
+      <dt><span class="key-combination"><kbd>Alt</kbd> + <kbd>←</kbd></span> or <kbd>Mouse button 4</kbd></dt><dd>Back</dd>
+      <dt><span class="key-combination"><kbd>Alt</kbd> + <kbd>→</kbd></span> or <kbd>Mouse button 5</kbd></dt><dd>Forward</dd>
+      <dt><kbd>Esc</kbd></dt><dd>Close dialog, clear selection, or go back</dd>
+      <dt><kbd>+</kbd> / <kbd>−</kbd></dt><dd>Zoom</dd>
+      <dt><kbd>Mouse wheel</kbd></dt><dd>Zoom around the pointer</dd>
+      <dt><kbd>0</kbd> or <kbd>F</kbd></dt><dd>Fit graph to view</dd>
+      <dt><kbd>?</kbd></dt><dd>Keyboard shortcuts</dd>
+    </dl>
+    <fieldset class="viewer-settings">
+      <legend>Settings</legend>
+      <label><input id="wheel-navigation" type="checkbox" checked> Change level with the mouse wheel</label>
+      <label><input id="double-click-navigation" type="checkbox"> Change level with a double-click</label>
+    </fieldset>
+  </dialog>
+  <noscript>The viewer requires JavaScript to display the local graph.</noscript>
+  <!-- data -->
+  <!-- script -->
+</body>
+</html>
