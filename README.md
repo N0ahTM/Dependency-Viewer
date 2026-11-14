@@ -40,6 +40,7 @@ python tools/scan.py /path/to/checkout --html dependency-viewer-report/index.htm
 The scanner emits `dependency-viewer-report/graph.json` and the standalone
 HTML report. It reads CMake and C/C++ declarations statically. See the
 [GitLab guide](ci/README.md) for coverage and how to use the job per repository.
+Repeat `--scan-dir` to restrict the scan to specific directories.
 To render a JSON graph from another source, pass it with `--data` to
 `tools/build.py`.
 

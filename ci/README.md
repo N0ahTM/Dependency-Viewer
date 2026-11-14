@@ -79,6 +79,18 @@ set Pages visibility to **Only Project Members** before publishing its report.
 
 ## Scanner coverage
 
+By default, the scanner uses the entire checkout. To limit a custom CI job
+to selected directories, pass one `--scan-dir` option per directory.
+Use checkout-relative paths and match their spelling on the runner.
+
+```sh
+python tools/scan.py /path/to/checkout --scan-dir include --scan-dir src --scan-dir interface \
+  --html dependency-viewer-report/index.html
+```
+
+The filter applies to CMake declarations and C/C++ files. References to
+dependencies outside those directories can still appear as external details.
+
 - CMake libraries, executables, named helper targets, aliases, link arguments,
   build dependencies and literal source manifests.
 - C++ modules, imports, partitions and local includes. Ambiguous targets,

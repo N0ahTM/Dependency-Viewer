@@ -10,8 +10,8 @@ from .paths import cmake_file, inventory
 from .source_graph import index_sources, read_dependencies
 
 
-def scan(root, name):
-    paths = inventory(root)
+def scan(root, name, directories=()):
+    paths = inventory(root, directories)
     scripts = {path: list(cmake_commands((root / path).read_text(encoding="utf-8-sig", errors="replace")))
                for path in paths if cmake_file(path)}
     files = {path: source_text(root / path) for path in paths if PurePosixPath(path).suffix.lower() in SUFFIXES}
@@ -19,7 +19,8 @@ def scan(root, name):
     owners = source_owners(scripts, declarations, targets, files)
     if not targets and not files:
         return inventory_report(name, paths, scripts)
-    assign_remaining_sources(targets, owners, files, name, (root / "CMakeLists.txt").is_file())
+    has_root_cmake = not directories and (root / "CMakeLists.txt").is_file()
+    assign_remaining_sources(targets, owners, files, name, bool(directories) or has_root_cmake)
 
     links = [link for path, commands in scripts.items() for link in target_links(commands, path, targets, aliases)]
     modules, items_by_file, providers, module_declarations = index_sources(files, owners)
