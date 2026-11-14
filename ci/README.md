@@ -43,7 +43,7 @@ commit.
 
 ## Local template
 
-Copy the `ci`, `tools` and `src` directories into `.dependency-viewer/` in the
+Copy `LICENSE` and the `ci`, `tools` and `src` directories into `.dependency-viewer/` in the
 consumer repository. For a pipeline with no other jobs, use:
 
 ```yaml

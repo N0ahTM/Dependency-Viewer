@@ -45,12 +45,14 @@ def bundle(entry):
 
 def build(output, data_path):
     template = (SOURCE / "index.html").read_text(encoding="utf-8")
+    license_text = (ROOT / "LICENSE").read_text(encoding="utf-8").strip()
     css = "".join((SOURCE / "styles" / (name + ".css")).read_text(encoding="utf-8") for name in STYLE_FILES)
     data = json.loads(data_path.read_text(encoding="utf-8"))
     json_text = json.dumps(data, ensure_ascii=False, separators=(",", ":")).replace("<", r"\u003c")
     entry = SOURCE / "app/main.mjs"
     js = re.sub(r"</script", lambda _: r"<\/script", bundle(entry), flags=re.IGNORECASE)
-    html = template.replace("<!-- styles -->", f"<style>\n{css}</style>")
+    html = template.replace("<!-- license -->", f"<!--\n{license_text}\n-->")
+    html = html.replace("<!-- styles -->", f"<style>\n{css}</style>")
     html = html.replace("<!-- data -->", f'<script id="viewer-data" type="application/json">{json_text}</script>')
     html = html.replace("<!-- script -->", f'<script type="module">\n{js}\n</script>')
     output.write_text(html, encoding="utf-8")

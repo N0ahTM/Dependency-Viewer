@@ -44,7 +44,7 @@ source. Run **Deploy demo to GitHub Pages** under **Actions**. Later pushes to
 
 ## Run it on GitLab
 
-Copy the `ci`, `src` and `tools` directories into `.dependency-viewer/` in
+Copy `LICENSE` and the `ci`, `src` and `tools` directories into `.dependency-viewer/` in
 the checkout to scan, then add the local include shown in the
 [GitLab guide](ci/README.md#local-template). The guide also covers sharing one
 template across GitLab projects and serving a report through GitLab Pages.
@@ -55,3 +55,7 @@ The viewer entry point is `src/app/main.mjs`. The input model and graph
 algorithms live under `src/data/` and `src/graph/`. Drawings and interactions
 live under `src/views/`, `src/navigation/` and `src/ui/`. The static scanner
 is under `tools/scanner/`.
+
+## License
+
+Dependency Viewer is released under the [MIT License](LICENSE).
