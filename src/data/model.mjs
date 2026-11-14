@@ -13,7 +13,7 @@ export function createModel(data) {
   const libraryNode = library => ({
     id: library.name, label: library.label ?? library.name, type: 'library', library: library.name,
     count: modulesByLibrary.get(library.name).length,
-    next: { library: library.name },
+    next: modulesByLibrary.get(library.name).length ? { library: library.name } : undefined,
   });
 
   const groups = new Map([...modulesByLibrary].map(([id, members]) => [id, indexBy(members, module => module.group)]));
@@ -25,6 +25,12 @@ export function createModel(data) {
   const linksTo = indexBy(data.links, record => record.target);
   const cache = new Map();
   const safeModule = id => Object.hasOwn(data.modules, id) ? data.modules[id] : undefined;
+  function dependencyLabel(id) {
+    const module = safeModule(id);
+    if (!data.generic && id?.startsWith('file:') && module?.files.length === 1) return module.files[0].path;
+    if (module) return data.generic ? module.label ?? id : id;
+    return Object.hasOwn(data.libraries, id) ? data.libraries[id].label ?? id : id;
+  }
 
   function moduleNode(module) {
     return {
@@ -46,11 +52,15 @@ export function createModel(data) {
     return [...edges.values()];
   }
 
+  const visibleLibraries = libraries.filter(library =>
+    library.type !== 'custom_target' || modulesByLibrary.get(library.name).length > 0);
+  const visibleLibraryIds = new Set(visibleLibraries.map(library => library.name));
   const overview = {
     title: data.name,
-    nodes: sorted(libraries.map(libraryNode)),
+    nodes: sorted(visibleLibraries.map(libraryNode)),
     edges: connections(data.links, link => [
-      link.source, !link.expression && Object.hasOwn(data.libraries, link.target) ? link.target : null,
+      visibleLibraryIds.has(link.source) ? link.source : null,
+      !link.expression && visibleLibraryIds.has(link.target) ? link.target : null,
     ]),
   };
   const groupLabel = id => data.groups?.[id]?.label ?? id;
@@ -171,6 +181,6 @@ export function createModel(data) {
       .slice(0, limit);
   }
 
-  return { view, details, full, search, boundaries, libraryLabel, groupLabel,
+  return { view, details, full, search, boundaries, libraryLabel, groupLabel, dependencyLabel,
     cycles: () => cycleGroups(full()), generic: data.generic };
 }

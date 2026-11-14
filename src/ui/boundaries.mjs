@@ -1,7 +1,7 @@
 import { setIconButton } from './icons.mjs';
 import { showBoundary } from './details.mjs';
 
-export function renderBoundaries(panel, host, boundaries) {
+export function renderBoundaries(panel, host, boundaries, label) {
   panel.replaceChildren();
   for (const boundary of boundaries) {
     const outgoing = boundary.type === 'imports';
@@ -17,7 +17,7 @@ export function renderBoundaries(panel, host, boundaries) {
     button.onpointerleave = () => highlight(false);
     button.onfocus = () => highlight(true);
     button.onblur = () => highlight(false);
-    button.onclick = () => showBoundary(boundary);
+    button.onclick = () => showBoundary(boundary, label);
     panel.append(button);
   }
   panel.hidden = !panel.childElementCount;

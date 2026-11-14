@@ -69,7 +69,7 @@ function inspectNode(node, pointerX) {
   entry().selected = node.id;
   entry().path = null;
   emphasize();
-  showNode(node, model.details(node), pointerX);
+  showNode(node, model.details(node), pointerX, model.dependencyLabel);
 }
 
 function dismissDetails() {
@@ -95,7 +95,7 @@ function openNode(node, event, atlasOrigin) {
     entry().pathSource = source;
     entry().selected = node.id;
     emphasize();
-    showPath(path, scene.nodes, source, node.id);
+    showPath(path, scene.nodes, source, node.id, model.dependencyLabel);
     status.textContent = path ? path.length + ' steps' : 'No directed path';
     return;
   }
@@ -219,7 +219,7 @@ function refreshControls() {
 }
 
 function showBoundaries(location, graph) {
-  renderBoundaries(select('boundary'), host, model.boundaries(location, graph));
+  renderBoundaries(select('boundary'), host, model.boundaries(location, graph), model.dependencyLabel);
 }
 
 function emphasize() {
@@ -264,7 +264,7 @@ function render(motion = null) {
         cameraScale: grid.update,
         level(level) { atlasLevel = level; updateAtlasControls(select, entry(), atlasLevel); },
         mode(level) { state.fixedLevel = level; updateAtlasControls(select, entry(), atlasLevel); },
-        inspect: showConnection,
+        inspect: (edge, from, to) => showConnection(edge, from, to, model.dependencyLabel),
         select(node, event) {
           const target = node.type === 'module' ? node : { ...node, next: { library: node.library, group: node.group } };
           openNode(target, event, node.id);
@@ -296,7 +296,7 @@ function mountGraph(panel, state) {
       state.pathSource = edge.source;
       state.selected = edge.target;
       emphasize();
-      showConnection(edge, source, target);
+      showConnection(edge, source, target, model.dependencyLabel);
     },
   });
 }

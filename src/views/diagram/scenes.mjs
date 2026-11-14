@@ -43,7 +43,7 @@ export function createDiagramScenes(getModel) {
       open: openNode,
       inspectNode,
       inspectEdge,
-      preview: hasPreviews ? node => nodePreview(node.next) : undefined,
+      preview: hasPreviews ? node => node.next ? nodePreview(node.next) : null : undefined,
     });
     const { svg, bounds, nodes } = drawing;
     panel.append(svg);

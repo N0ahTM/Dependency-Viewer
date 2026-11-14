@@ -41,6 +41,11 @@ The scanner emits `dependency-viewer-report/graph.json` and the standalone
 HTML report. It reads CMake and C/C++ declarations statically. See the
 [GitLab guide](ci/README.md) for coverage and how to use the job per repository.
 Repeat `--scan-dir` to restrict the scan to specific directories.
+The scanner keeps files found in those directories even when it cannot find a
+CMake source entry for them. The report marks those locations as discovered
+by the source scan. Custom CMake targets do not claim neighboring files by
+directory alone. Tasks without source files appear in the build prerequisite
+details of their consumers.
 To render a JSON graph from another source, pass it with `--data` to
 `tools/build.py`.
 

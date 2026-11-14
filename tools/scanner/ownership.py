@@ -59,10 +59,14 @@ def source_owners(scripts, declarations, targets, files):
 
         consume(cmake, {cmake})
 
+    declared_files = set(owners)
     scoped = {}
     for path, names in declarations.items():
         folder = PurePosixPath(path).parent
         if PurePosixPath(path).name != "CMakeLists.txt":
+            continue
+        names = {name for name in names if targets[name]["type"] != "custom_target"}
+        if not names:
             continue
         scoped.setdefault(folder, set()).update(names)
         if folder.parts[:1] == ("Source",):
@@ -75,7 +79,7 @@ def source_owners(scripts, declarations, targets, files):
                 if len(names) == 1:
                     owners[path] = names
                 break
-    return owners
+    return owners, declared_files
 
 
 def assign_remaining_sources(targets, owners, files, name, has_root_cmake):

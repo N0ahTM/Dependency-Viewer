@@ -6,7 +6,7 @@ from .cpp import IMPORT, INCLUDE, MODULE, group_name, module_label
 from .paths import normalize_path
 
 
-def index_sources(files, owners):
+def index_sources(files, owners, declared_files):
     modules, items_by_file, providers = {}, {}, {}
     declarations = {path: MODULE.search(text) for path, text in files.items()}
     module_owners = {}
@@ -24,7 +24,10 @@ def index_sources(files, owners):
                 "name": item, "label": module_label(module, library) if module else relative.name,
                 "library": library, "group": group, "files": [],
             })
-            entry["files"].append({"path": path, "line": text.count("\n", 0, declaration.start()) + 1 if declaration else 1})
+            location = {"path": path, "line": text.count("\n", 0, declaration.start()) + 1 if declaration else 1}
+            if path not in declared_files:
+                location["listedInBuild"] = False
+            entry["files"].append(location)
             items_by_file.setdefault(path, {})[library] = item
             if module:
                 providers.setdefault(module, {})[library] = item

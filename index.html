@@ -474,7 +474,7 @@ function createModel(data) {
   const libraryNode = library => ({
     id: library.name, label: library.label ?? library.name, type: 'library', library: library.name,
     count: modulesByLibrary.get(library.name).length,
-    next: { library: library.name },
+    next: modulesByLibrary.get(library.name).length ? { library: library.name } : undefined,
   });
 
   const groups = new Map([...modulesByLibrary].map(([id, members]) => [id, indexBy(members, module => module.group)]));
@@ -486,6 +486,12 @@ function createModel(data) {
   const linksTo = indexBy(data.links, record => record.target);
   const cache = new Map();
   const safeModule = id => Object.hasOwn(data.modules, id) ? data.modules[id] : undefined;
+  function dependencyLabel(id) {
+    const module = safeModule(id);
+    if (!data.generic && id?.startsWith('file:') && module?.files.length === 1) return module.files[0].path;
+    if (module) return data.generic ? module.label ?? id : id;
+    return Object.hasOwn(data.libraries, id) ? data.libraries[id].label ?? id : id;
+  }
 
   function moduleNode(module) {
     return {
@@ -507,11 +513,15 @@ function createModel(data) {
     return [...edges.values()];
   }
 
+  const visibleLibraries = libraries.filter(library =>
+    library.type !== 'custom_target' || modulesByLibrary.get(library.name).length > 0);
+  const visibleLibraryIds = new Set(visibleLibraries.map(library => library.name));
   const overview = {
     title: data.name,
-    nodes: sorted(libraries.map(libraryNode)),
+    nodes: sorted(visibleLibraries.map(libraryNode)),
     edges: connections(data.links, link => [
-      link.source, !link.expression && Object.hasOwn(data.libraries, link.target) ? link.target : null,
+      visibleLibraryIds.has(link.source) ? link.source : null,
+      !link.expression && visibleLibraryIds.has(link.target) ? link.target : null,
     ]),
   };
   const groupLabel = id => data.groups?.[id]?.label ?? id;
@@ -632,7 +642,7 @@ function createModel(data) {
       .slice(0, limit);
   }
 
-  return { view, details, full, search, boundaries, libraryLabel, groupLabel,
+  return { view, details, full, search, boundaries, libraryLabel, groupLabel, dependencyLabel,
     cycles: () => cycleGroups(full()), generic: data.generic };
 }
 return { createModel };
@@ -1042,6 +1052,7 @@ function source(record) {
   const conditions = [...(record.conditions ?? [])];
   if (record.scope) conditions.unshift(record.scope);
   if (record.reexport) conditions.unshift('export import');
+  if (record.listedInBuild === false) conditions.unshift('Found by source scan; no CMake source entry found');
   for (const condition of conditions) line.append(element('small', condition));
   return line;
 }
@@ -1084,46 +1095,58 @@ function closeDetails() {
   panel.hidden = true;
 }
 
-function showNode(node, details, pointerX) {
-  start(node.label, undefined, pointerX);
-  section('Uses', details.outgoing, record => record.target);
-  section('Used by', details.incoming, record => record.source ?? record.path);
+function showNode(node, details, pointerX, label) {
+  const buildOnly = record => record.scope === 'add_dependencies';
+  const uses = details.outgoing.filter(record => details.generic || record.kind !== 'include');
+  start(node.label, details.definition?.type === 'custom_target' ? 'CMake build task' : undefined, pointerX);
+  section('Uses', uses.filter(record => !buildOnly(record)), record => label(record.target));
+  section('Used by', details.incoming.filter(record => !buildOnly(record)), record => label(record.source) ?? record.path);
+  section('Build prerequisites', uses.filter(buildOnly), record => label(record.target));
+  section('Required at build time by', details.incoming.filter(buildOnly), record => label(record.source));
   if (details.definition) {
     const list = element('ul');
     const files = details.definition.files ?? (details.definition.path ? [details.definition] : []);
     for (const file of files) list.append(source(file));
-    if (files.length) body.append(list);
+    if (files.length) {
+      const block = element('section');
+      block.append(element('h3', details.definition.files ? 'Definition' : 'CMake declaration'), list);
+      body.append(block);
+    }
   }
   section('Source files', details.members.flatMap(module => module.files.map(file => ({
-    ...file, name: module.name,
+    ...file, name: file.path,
   }))), record => record.name);
   const outgoing = new Set(details.outgoing);
-  section('Internal dependencies', details.imports.filter(record => !outgoing.has(record)), record => record.target);
+  section('Internal dependencies', details.imports.filter(record => !outgoing.has(record)
+    && (details.generic || record.kind !== 'include')), record => label(record.target));
   section('Includes', details.includes, record => record.target);
 }
 
-function showConnection(edge, from, to) {
+function showConnection(edge, from, to, label) {
   const cmake = edge.records.every(record => 'scope' in record);
   const kinds = [...new Set(edge.records.map(record => record.kind).filter(Boolean))];
-  start(from.label + ' → ' + to.label, kinds.length ? kinds.join(' · ') : cmake ? 'CMake' : 'C++ imports');
+  const buildOnly = edge.records.every(record => record.scope === 'add_dependencies');
+  start(from.label + ' → ' + to.label, kinds.length ? kinds.join(' · ')
+    : buildOnly ? 'CMake build prerequisite' : cmake ? 'CMake' : 'C++ imports');
   if (edge.pairs > 1) body.append(element('p', edge.pairs + ' connections'));
-  section('Source locations', edge.records, record => cmake ? record.target : (record.source + ' → ' + record.target));
+  section('Source locations', edge.records, record => cmake ? label(record.target)
+    : (label(record.source) + ' → ' + label(record.target)));
   if (!(edge.pairs > 1)) for (const row of body.querySelectorAll('details')) row.open = true;
 }
 
-function showPath(path, nodes, source, target) {
+function showPath(path, nodes, source, target, label) {
   start(nodes.get(source).label + ' → ' + nodes.get(target).label,
     path ? path.length + ' direct steps' : 'No directed path in this view.');
   if (!path) return;
   for (const edge of path) {
-    section(nodes.get(edge.source).label + ' → ' + nodes.get(edge.target).label, edge.records, record => record.target);
+    section(nodes.get(edge.source).label + ' → ' + nodes.get(edge.target).label, edge.records, record => label(record.target));
   }
 }
 
-function showBoundary(boundary) {
+function showBoundary(boundary, label) {
   const incoming = boundary.type === 'users';
   start(incoming ? 'External consumers' : 'External dependencies');
-  section('Source locations', boundary.records, record => incoming ? record.source ?? record.path : record.target);
+  section('Source locations', boundary.records, record => incoming ? label(record.source) ?? record.path : label(record.target));
 }
 
 function showCycles(groups, locate) {
@@ -1152,7 +1175,7 @@ modules["src/ui/boundaries.mjs"] = (() => {
 const { setIconButton } = modules["src/ui/icons.mjs"];
 const { showBoundary } = modules["src/ui/details.mjs"];
 
-function renderBoundaries(panel, host, boundaries) {
+function renderBoundaries(panel, host, boundaries, label) {
   panel.replaceChildren();
   for (const boundary of boundaries) {
     const outgoing = boundary.type === 'imports';
@@ -1168,7 +1191,7 @@ function renderBoundaries(panel, host, boundaries) {
     button.onpointerleave = () => highlight(false);
     button.onfocus = () => highlight(true);
     button.onblur = () => highlight(false);
-    button.onclick = () => showBoundary(boundary);
+    button.onclick = () => showBoundary(boundary, label);
     panel.append(button);
   }
   panel.hidden = !panel.childElementCount;
@@ -1953,7 +1976,7 @@ function createDiagramScenes(getModel) {
       open: openNode,
       inspectNode,
       inspectEdge,
-      preview: hasPreviews ? node => nodePreview(node.next) : undefined,
+      preview: hasPreviews ? node => node.next ? nodePreview(node.next) : null : undefined,
     });
     const { svg, bounds, nodes } = drawing;
     panel.append(svg);
@@ -3228,7 +3251,7 @@ function inspectNode(node, pointerX) {
   entry().selected = node.id;
   entry().path = null;
   emphasize();
-  showNode(node, model.details(node), pointerX);
+  showNode(node, model.details(node), pointerX, model.dependencyLabel);
 }
 
 function dismissDetails() {
@@ -3254,7 +3277,7 @@ function openNode(node, event, atlasOrigin) {
     entry().pathSource = source;
     entry().selected = node.id;
     emphasize();
-    showPath(path, scene.nodes, source, node.id);
+    showPath(path, scene.nodes, source, node.id, model.dependencyLabel);
     status.textContent = path ? path.length + ' steps' : 'No directed path';
     return;
   }
@@ -3378,7 +3401,7 @@ function refreshControls() {
 }
 
 function showBoundaries(location, graph) {
-  renderBoundaries(select('boundary'), host, model.boundaries(location, graph));
+  renderBoundaries(select('boundary'), host, model.boundaries(location, graph), model.dependencyLabel);
 }
 
 function emphasize() {
@@ -3423,7 +3446,7 @@ function render(motion = null) {
         cameraScale: grid.update,
         level(level) { atlasLevel = level; updateAtlasControls(select, entry(), atlasLevel); },
         mode(level) { state.fixedLevel = level; updateAtlasControls(select, entry(), atlasLevel); },
-        inspect: showConnection,
+        inspect: (edge, from, to) => showConnection(edge, from, to, model.dependencyLabel),
         select(node, event) {
           const target = node.type === 'module' ? node : { ...node, next: { library: node.library, group: node.group } };
           openNode(target, event, node.id);
@@ -3455,7 +3478,7 @@ function mountGraph(panel, state) {
       state.pathSource = edge.source;
       state.selected = edge.target;
       emphasize();
-      showConnection(edge, source, target);
+      showConnection(edge, source, target, model.dependencyLabel);
     },
   });
 }
