@@ -36,11 +36,12 @@ To render a JSON graph from another source, pass it with `--data` to
 
 ## Host the demo on GitHub Pages
 
-Push this source tree to the `main` branch of a new repository. In
-**Settings → Pages → Build and deployment**, select **GitHub Actions** as the
-source. Run **Deploy demo to GitHub Pages** under **Actions**. Later pushes to
-`main` refresh the site. The workflow builds only the synthetic demo.
-[GitHub Pages workflow documentation](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages)
+Publish a `gh-pages` branch containing the generated `index.html` from the
+synthetic demo and an empty `.nojekyll` file. In
+**Settings → Pages → Build and deployment**, select **Deploy from a branch**
+and choose `gh-pages` and `/ (root)`. To update the demo, rebuild it with
+`python tools/build.py` and commit the new HTML to `gh-pages`.
+[GitHub Pages publishing sources](https://docs.github.com/en/pages/getting-started-with-github-pages/configuring-a-publishing-source-for-your-github-pages-site)
 
 ## Run it on GitLab
 
