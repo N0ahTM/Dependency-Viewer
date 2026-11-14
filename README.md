@@ -1,5 +1,10 @@
 # Dependency Viewer
 
+[![Live demo](https://img.shields.io/badge/demo-GitHub%20Pages-0969da)](https://n0ahtm.github.io/Dependency-Viewer/)
+[![MIT License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+[![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-3776AB)](#build-a-report)
+[![Latest release](https://img.shields.io/github/v/release/N0ahTM/Dependency-Viewer)](https://github.com/N0ahTM/Dependency-Viewer/releases/latest)
+
 Dependency Viewer is an interactive graph for build targets, source files and
 modules. Explore dependencies in the browser, inspect source locations and
 follow directed paths between items. The application runs from a single HTML
@@ -7,7 +12,11 @@ file and supports both a detailed graph and a zoomable overview.
 
 ## Try the demo
 
-Open [index.html](index.html) from a local checkout or an extracted archive.
+**[Open the live demo on GitHub Pages](https://n0ahtm.github.io/Dependency-Viewer/)**
+
+[![Enter a project, hover to highlight its connections, then switch to Overview and hover a module](https://github.com/user-attachments/assets/10148c70-7cc4-47ea-8344-0ae9617f43cc)](https://n0ahtm.github.io/Dependency-Viewer/)
+
+To run it locally, open [index.html](index.html) from a local checkout or an extracted archive.
 The default graph describes a fictional application. Use the folder button to
 load another graph. [Graph format](FORMAT.md) describes the JSON contract and
 links to the schema.
