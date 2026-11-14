@@ -1,0 +1,3639 @@
+<!doctype html>
+<!--
+MIT License
+
+Copyright (c) 2026 Dependency Viewer contributors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dependency Viewer</title>
+  <style>
+:root {
+  color-scheme: dark;
+  font: 14px system-ui, sans-serif;
+  color: #dce7f2;
+  background: #10151d;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; overflow: hidden; }
+[hidden] { display: none !important; }
+
+#graph {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+}
+.graph-scene { position: absolute; inset: 0; }
+#graph-background {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+#graph-background circle { fill: #38495f; }
+#graph { isolation: isolate; }
+.diagram { display: block; width: 100%; height: 100%; touch-action: none; cursor: grab; }
+.atlas { display: block; width: 100%; height: 100%; touch-action: none; cursor: grab; }
+.atlas-surface { position: absolute; pointer-events: none; transform-origin: 0 0; }
+.atlas-input { position: absolute; inset: 0; touch-action: none; cursor: grab; }
+.atlas-input:active { cursor: grabbing; }
+.atlas-tooltip { position: absolute; max-width: min(300px, calc(100% - 16px)); overflow-wrap: anywhere; padding: 6px 9px; background: #192838; border: 1px solid #52708b; border-radius: 6px; color: #e5f0fb; pointer-events: none; font-size: 12px; }
+.departing, .graph-scene > .diagram { position: absolute; inset: 0; }
+.departing { pointer-events: none; }
+.in-flight > rect, .in-flight .node-info { visibility: hidden; }
+.diagram:active { cursor: grabbing; }
+.card, .node-info, .wire { cursor: pointer; outline: none; }
+.card, .card text { -webkit-user-select: none; user-select: none; }
+.box { fill: #172434; stroke: #638caf; stroke-width: 1.4; }
+.group .box { fill: #172a2c; stroke: #73a99d; }
+.module .box { fill: #21253a; stroke: #969cc7; }
+.label { fill: #f0f5fb; font: 600 15px ui-monospace, Consolas, monospace; }
+.caption { fill: #a3b7cb; font-size: 11px; }
+.label, .caption, .miniature, .preview-box, .preview-content { pointer-events: none; }
+.preview-box { fill: #101c23; stroke: #38585a; }
+.miniature .label { font-size: 17px; }
+.labels-small .miniature .label { display: none; }
+.miniature .line { stroke-width: 4; }
+.card:hover > .box, .card:focus-visible > .box, .card.selected > .box, .card.endpoint > .box { stroke: #d0f5ff; stroke-width: 2.3; }
+.card.wheel-preview > .box { stroke: #d0f5ff; stroke-width: 3; }
+.card.wheel-preview > .preview-box { stroke: #94c5e7; stroke-width: 1.6; }
+#back.wheel-preview { border-color: #d0f5ff; background: #2b425a; }
+.card, .wire { transition: opacity 125ms cubic-bezier(0.23, 1, 0.32, 1); }
+.card.dimmed { opacity: .32; }
+.wire.dimmed { opacity: .14; }
+.wire.marked .line { stroke: #a9e5ff; stroke-width: 3; }
+.wire.related .line { stroke: #a9d3ef; }
+.node-info { opacity: 0; }
+.card:hover + .node-info, .node-info:hover, .node-info:focus-visible, .card:focus-visible + .node-info { opacity: 1; }
+@media (hover: none) { .node-info { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .card, .wire { transition: none; } }
+.node-info rect { fill: #25384a; stroke: #668196; }
+.node-info text { fill: #c7d9e9; text-anchor: middle; font-size: 13px; pointer-events: none; }
+.node-info:hover rect, .node-info:focus-visible rect { stroke: #d0f5ff; }
+.line { fill: none; stroke: #7396b8; stroke-width: 2; }
+.hit { fill: none; stroke: transparent; stroke-width: 14; }
+.wire:hover .line, .wire:focus-visible .line { stroke: #a9e5ff; stroke-width: 3.5; }
+.diagram.show-neighbors > .cards > .card:not(.hover-neighbor, .pinned, .pin-neighbor) { opacity: .32; }
+.diagram.show-neighbors > .wires > .wire:not(.hover-neighbor, .pinned) { opacity: .14; }
+.card.hover-neighbor, .wire.hover-neighbor, .card.pin-neighbor, .card.pinned, .wire.pinned { opacity: 1; }
+.card.pinned > .box { stroke: var(--pin-color); stroke-width: 3; }
+.wire.pinned > .line { stroke: var(--pin-color); stroke-width: 3; }
+.pulse { fill: #e0f7ff; pointer-events: none; }
+.tool-icon { width: 15px; height: 15px; vertical-align: -3px; margin-right: 5px; }
+.icon-button { display: inline-grid; place-items: center; min-width: 34px; min-height: 34px; padding: 6px; }
+.icon-button .tool-icon { margin: 0; vertical-align: 0; }
+.copy.icon-button { min-width: 25px; min-height: 25px; }
+#help-dialog { width: min(450px, calc(100vw - 24px)); background: #141e2a; color: inherit; border: 1px solid #40546a; border-radius: 10px; }
+#help-dialog header { display: flex; justify-content: space-between; align-items: center; }
+#help-dialog h2 { font-size: 16px; }
+#help-dialog dl { display: grid; grid-template-columns: minmax(0, max-content) minmax(0, 1fr); gap: 9px 16px; align-items: baseline; }
+#help-dialog dd { margin: 0; }
+.viewer-settings { display: grid; gap: 8px; margin: 0; padding: 8px 12px 12px; border: 1px solid #40546a; border-radius: 6px; }
+.viewer-settings label { display: flex; align-items: center; gap: 7px; }
+.viewer-settings input { margin: 0; accent-color: #a5ceff; }
+.key-combination { white-space: nowrap; }
+kbd {
+  display: inline-block;
+  min-width: 1.9em;
+  padding: 2px 5px;
+  border: 1px solid #55728e;
+  border-bottom: 2px solid #55728e;
+  border-radius: 5px;
+  background: #24364a;
+  color: #eef6ff;
+  font: 600 12px/1.35 ui-monospace, Consolas, monospace;
+  text-align: center;
+  white-space: nowrap;
+}
+@media (max-width: 420px) {
+  #help-dialog dl { grid-template-columns: minmax(0, 1fr); row-gap: 6px; }
+  #help-dialog dd + dt { margin-top: 6px; }
+}
+.card-icon { pointer-events: none; color: #9ec6ed; }
+.group > .card-icon { color: #8fd7c2; }
+.module > .card-icon { color: #c2baf4; }
+.hover-flow { fill: none; stroke: #d4f4ff; stroke-width: 2.6; stroke-dasharray: 2 11; stroke-linecap: round; pointer-events: none; animation: flow-back .52s linear infinite; }
+@keyframes flow-back { to { stroke-dashoffset: 13; } }
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  .card > .preview-content { opacity: .86; transition: opacity 140ms cubic-bezier(.23, 1, .32, 1); }
+  .card:hover > .preview-content { opacity: 1; }
+  .tools button { transition: transform 125ms cubic-bezier(.23, 1, .32, 1); }
+  .tools button:hover:not(:disabled) { transform: translateY(-1px); }
+}
+.atlas-controls { position: fixed; left: 16px; bottom: 61px; display: flex; flex-wrap: wrap; gap: 5px; max-width: min(500px, calc(100% - 32px)); z-index: 2; }
+.atlas-controls button[aria-pressed="true"] { border-color: #9acaeb; background: #2a415a; }
+.atlas-help { flex-basis: 100%; color: #c6daee; background: #141e2a; padding: 6px 9px; border-radius: 7px; }
+.tools { position: fixed; top: 16px; left: 16px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; max-width: calc(100vw - 32px); }
+.tools { z-index: 2; }
+.view-tabs { display: inline-flex; padding: 2px; gap: 2px; border: 1px solid #40546a; border-radius: 10px; background: #141e2a; }
+.view-tabs button { background: transparent; border-color: transparent; padding: 5px 8px; font-size: 12px; }
+.view-tabs button[aria-selected="true"] { background: #2b425a; border-color: #577e9e; color: #f0f7ff; }
+.view-tabs button:hover { background: #24374a; }
+.view-tabs button { transition: background-color 125ms ease, border-color 125ms ease; }
+.tools button[aria-pressed="true"] { border-color: #9acaeb; background: #2a415a; }
+button:disabled { opacity: .42; cursor: default; }
+#status { color: #bacfe4; background: #141e2a; border-radius: 7px; }
+#status:not(:empty) { padding: 6px 8px; }
+#minimap { position: fixed; right: 16px; bottom: 58px; width: 176px; height: 116px; border: 1px solid #40546a; border-radius: 8px; cursor: crosshair; }
+@media (max-width: 720px) { #minimap { bottom: 160px; } }
+.boundary { position: fixed; bottom: 60px; left: 16px; display: flex; flex-wrap: wrap; gap: 6px; }
+
+.navigation, .zoom {
+  position: fixed;
+  bottom: 16px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.navigation { left: 16px; max-width: calc(100% - 175px); }
+.zoom { right: 16px; }
+#breadcrumb { background: #141e2a; padding: 8px 12px; border-radius: 8px; overflow-wrap: anywhere; }
+button {
+  color: inherit;
+  font: inherit;
+  border: 1px solid #40546a;
+  border-radius: 8px;
+  background: #1b2939;
+  padding: 7px 10px;
+  cursor: pointer;
+}
+button:hover { background: #293e54; }
+button:focus-visible { outline: 2px solid #a9e5ff; outline-offset: 2px; }
+#details {
+  position: fixed;
+  top: 64px;
+  right: 16px;
+  bottom: 68px;
+  width: min(440px, calc(100% - 32px));
+  overflow: auto;
+  background: #14202d;
+  border: 1px solid #40546a;
+  border-radius: 12px;
+  box-shadow: 0 12px 40px #0008;
+  padding: 16px;
+}
+#details header { display: flex; justify-content: space-between; align-items: start; gap: 12px; }
+#details.details-left { right: auto; left: 16px; }
+#details.details-beside-target { width: min(440px, calc(50% - 32px)); padding: clamp(6px, 2vw, 16px); }
+#details h2 { margin: 0; font-size: 18px; overflow-wrap: anywhere; }
+#details h3 { color: #b9d4eb; font-size: 13px; }
+.muted { color: #adbed0; }
+details { border-bottom: 1px solid #344354; padding: 8px 0; }
+summary, .source { overflow-wrap: anywhere; }
+summary { cursor: pointer; }
+ul { padding-left: 18px; }
+.source { color: #b6d8f9; font: 12px ui-monospace, Consolas, monospace; margin: 6px 0; }
+.source-row { display: flex; align-items: flex-start; gap: 8px; }
+.source-path { min-width: 0; overflow-wrap: anywhere; padding-top: 4px; }
+.source-row .copy { flex: none; margin-left: 0; }
+.source small { display: block; color: #b2bfd0; margin-top: 3px; }
+@media (max-width: 740px) { #details { top: 108px; } }
+.copy { font-size: 11px; padding: 2px 6px; margin-left: 8px; }
+#search-bar { position: fixed; z-index: 4; left: 50%; top: 16px; transform: translateX(-50%); width: min(390px, calc(100vw - 32px)); display: flex; align-items: center; gap: 8px; padding: 0 10px; border: 1px solid #40546a; border-radius: 9px; background: #172333; }
+#search-bar:focus-within { border-color: #83b4db; }
+#search-glyph .tool-icon { margin: 0; }
+#search-query { width: 100%; min-width: 0; padding: 8px 0; background: transparent; border: 0; outline: 0; font: inherit; color: inherit; }
+#search-results { position: absolute; top: calc(100% + 6px); left: 0; right: 0; display: grid; gap: 4px; max-height: min(46vh, 460px); overflow: auto; border: 1px solid #40546a; border-radius: 9px; padding: 6px; background: #14202d; box-shadow: 0 10px 28px #0006; }
+@media (max-width: 1150px) { #search-bar { top: 60px; } #details { top: 108px; } }
+@media (max-width: 440px) { #search-bar { top: 97px; } #details { top: 144px; } }
+#search-results button { text-align: left; overflow-wrap: anywhere; }
+#search-results button.active { background: #293e54; border-color: #88adc7; }
+#search-results small { display: block; color: #adbed0; margin-top: 2px; }
+#details, dialog, #search-results {
+  transition: opacity 160ms cubic-bezier(.23, 1, .32, 1),
+    transform 160ms cubic-bezier(.23, 1, .32, 1),
+    display 160ms allow-discrete, overlay 160ms allow-discrete;
+}
+#details[hidden], dialog:not([open]), #search-results[hidden] { opacity: 0; }
+#details[hidden] { transform: translateX(12px); }
+dialog:not([open]) { transform: translateY(6px) scale(.98); }
+#search-results[hidden] { transform: translateY(-4px); pointer-events: none; }
+dialog::backdrop { background: #090f19b0; transition: opacity 160ms, display 160ms allow-discrete, overlay 160ms allow-discrete; }
+dialog:not([open])::backdrop { opacity: 0; }
+@starting-style {
+  #details:not([hidden]) { opacity: 0; transform: translateX(12px); }
+  dialog[open] { opacity: 0; transform: translateY(6px) scale(.98); }
+  dialog[open]::backdrop { opacity: 0; }
+  #search-results:not([hidden]) { opacity: 0; transform: translateY(-4px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .view-tabs button { transition: none; }
+  #details, dialog, dialog::backdrop, #search-results { transition-duration: 100ms; }
+  #details[hidden], dialog:not([open]), #search-results[hidden] { transform: none; }
+  @starting-style {
+    #details:not([hidden]), dialog[open], #search-results:not([hidden]) { transform: none; }
+  }
+}
+</style>
+</head>
+<body>
+  <svg id="graph-background" aria-hidden="true">
+    <defs>
+      <pattern id="grid-tile" patternUnits="userSpaceOnUse" width="24" height="24" x="-6" y="-6" viewBox="0 0 2 2">
+        <circle cx=".5" cy=".5" r=".1"/>
+        <g class="grid-fine" opacity="0">
+          <circle cx="1.5" cy=".5" r=".1"/>
+          <circle cx=".5" cy="1.5" r=".1"/>
+          <circle cx="1.5" cy="1.5" r=".1"/>
+        </g>
+      </pattern>
+    </defs>
+    <rect width="100%" height="100%" fill="url(#grid-tile)"/>
+  </svg>
+  <main id="graph" aria-label="Dependency graph"></main>
+  <div id="search-bar" role="search">
+    <span id="search-glyph" aria-hidden="true"></span>
+    <input id="search-query" type="search" placeholder="Search modules, groups, or files" aria-label="Search graph" aria-controls="search-results" aria-expanded="false" autocomplete="off">
+    <kbd aria-hidden="true">/</kbd>
+    <div id="search-results" hidden></div>
+  </div>
+  <div class="tools" aria-label="Graph tools">
+    <div id="view-tabs" class="view-tabs" role="tablist" aria-label="Graph views">
+      <button id="graph-tab" type="button" role="tab" aria-controls="graph" aria-selected="true">Graph</button>
+      <button id="atlas-tab" type="button" role="tab" aria-controls="graph" aria-selected="false" tabindex="-1">Overview</button>
+    </div>
+    <button id="focus" type="button" aria-pressed="false" disabled>Focus</button>
+    <button id="depth" type="button" hidden>1 level</button>
+    <button id="path" type="button" aria-pressed="false" disabled>Path</button>
+    <button id="open-data" type="button"></button>
+    <button id="cycles" type="button"></button>
+    <button id="help" type="button"></button>
+    <input id="data-file" type="file" accept=".json,application/json" hidden>
+    <span id="status" role="status"></span>
+  </div>
+  <nav class="navigation" aria-label="Graph navigation">
+    <button id="back" type="button" hidden>← Back</button>
+    <span id="breadcrumb" aria-live="polite"></span>
+  </nav>
+  <div id="atlas-controls" class="atlas-controls" aria-label="Overview levels" hidden>
+    <button type="button" data-level="auto" aria-pressed="true">Auto</button>
+    <button type="button" data-level="0" aria-pressed="false">Libraries</button>
+    <button type="button" data-level="1" aria-pressed="false">Groups</button>
+    <button type="button" data-level="2" aria-pressed="false">Modules</button>
+    <button id="atlas-lines" type="button" aria-pressed="false" title="Show internal module connections when zooming in">Internal connections</button>
+  </div>
+  <div class="zoom" aria-label="View">
+    <button id="zoom-out" title="Zoom out" aria-label="Zoom out">−</button>
+    <button id="fit">Fit</button>
+    <button id="zoom-in" title="Zoom in" aria-label="Zoom in">+</button>
+  </div>
+  <canvas id="minimap" width="176" height="116" hidden aria-label="Overview minimap"></canvas>
+  <div id="boundary" class="boundary" aria-label="Graph boundaries" hidden></div>
+  <aside id="details" aria-labelledby="detail-title" hidden>
+    <header>
+      <h2 id="detail-title"></h2>
+      <button id="detail-close" aria-label="Close details">×</button>
+    </header>
+    <div id="detail-body"></div>
+  </aside>
+  <dialog id="help-dialog" aria-labelledby="help-title">
+    <header><h2 id="help-title">Keyboard shortcuts</h2><button id="help-close"></button></header>
+    <dl>
+      <dt><kbd>/</kbd> or <span class="key-combination"><kbd>Ctrl</kbd>/<kbd aria-label="Command key">⌘</kbd> + <kbd>F</kbd></span></dt><dd>Search</dd>
+      <dt><span class="key-combination"><kbd>Alt</kbd> + <kbd>←</kbd></span> or <kbd>Mouse button 4</kbd></dt><dd>Back</dd>
+      <dt><span class="key-combination"><kbd>Alt</kbd> + <kbd>→</kbd></span> or <kbd>Mouse button 5</kbd></dt><dd>Forward</dd>
+      <dt><kbd>Esc</kbd></dt><dd>Close dialog, clear selection, or go back</dd>
+      <dt><kbd>+</kbd> / <kbd>−</kbd></dt><dd>Zoom</dd>
+      <dt><kbd>Mouse wheel</kbd></dt><dd>Zoom around the pointer</dd>
+      <dt><kbd>0</kbd> or <kbd>F</kbd></dt><dd>Fit graph to view</dd>
+      <dt><kbd>?</kbd></dt><dd>Keyboard shortcuts</dd>
+    </dl>
+    <fieldset class="viewer-settings">
+      <legend>Settings</legend>
+      <label><input id="wheel-navigation" type="checkbox" checked> Change level with the mouse wheel</label>
+      <label><input id="double-click-navigation" type="checkbox"> Change level with a double-click</label>
+    </fieldset>
+  </dialog>
+  <noscript>The viewer requires JavaScript to display the local graph.</noscript>
+  <script id="viewer-data" type="application/json">{"format":"dependency-viewer","version":1,"name":"Workbench Demo","nodes":[{"id":"workbench","kind":"project","label":"Workbench"},{"id":"workbench.workspace","parent":"workbench","kind":"group","label":"Workspace"},{"id":"workbench.workspace.editor","parent":"workbench.workspace","kind":"item","label":"Editor","sources":[{"path":"src/workbench/workspace/editor.cpp","line":1}]},{"id":"workbench.workspace.documents","parent":"workbench.workspace","kind":"item","label":"Documents","sources":[{"path":"src/workbench/workspace/documents.cpp","line":1}]},{"id":"workbench.commands","parent":"workbench","kind":"group","label":"Commands"},{"id":"workbench.commands.run","parent":"workbench.commands","kind":"item","label":"Run","sources":[{"path":"src/workbench/commands/run.cpp","line":1}]},{"id":"workbench.commands.export","parent":"workbench.commands","kind":"item","label":"Export","sources":[{"path":"src/workbench/commands/export.cpp","line":1}]},{"id":"processing","kind":"project","label":"Processing"},{"id":"processing.pipeline","parent":"processing","kind":"group","label":"Pipeline"},{"id":"processing.pipeline.scheduler","parent":"processing.pipeline","kind":"item","label":"Scheduler","sources":[{"path":"src/processing/pipeline/scheduler.cpp","line":1}]},{"id":"processing.pipeline.stages","parent":"processing.pipeline","kind":"item","label":"Stages","sources":[{"path":"src/processing/pipeline/stages.cpp","line":1}]},{"id":"processing.validation","parent":"processing","kind":"group","label":"Validation"},{"id":"processing.validation.rules","parent":"processing.validation","kind":"item","label":"Rules","sources":[{"path":"src/processing/validation/rules.cpp","line":1}]},{"id":"processing.validation.report","parent":"processing.validation","kind":"item","label":"Report","sources":[{"path":"src/processing/validation/report.cpp","line":1}]},{"id":"persistence","kind":"project","label":"Persistence"},{"id":"persistence.records","parent":"persistence","kind":"group","label":"Records"},{"id":"persistence.records.index","parent":"persistence.records","kind":"item","label":"Index","sources":[{"path":"src/persistence/records/index.cpp","line":1}]},{"id":"persistence.records.store","parent":"persistence.records","kind":"item","label":"Store","sources":[{"path":"src/persistence/records/store.cpp","line":1}]},{"id":"persistence.cache","parent":"persistence","kind":"group","label":"Cache"},{"id":"persistence.cache.memory","parent":"persistence.cache","kind":"item","label":"Memory","sources":[{"path":"src/persistence/cache/memory.cpp","line":1}]},{"id":"persistence.cache.eviction","parent":"persistence.cache","kind":"item","label":"Eviction","sources":[{"path":"src/persistence/cache/eviction.cpp","line":1}]},{"id":"formats","kind":"project","label":"Formats"},{"id":"formats.text","parent":"formats","kind":"group","label":"Text"},{"id":"formats.text.reader","parent":"formats.text","kind":"item","label":"Reader","sources":[{"path":"src/formats/text/reader.cpp","line":1}]},{"id":"formats.text.writer","parent":"formats.text","kind":"item","label":"Writer","sources":[{"path":"src/formats/text/writer.cpp","line":1}]},{"id":"formats.binary","parent":"formats","kind":"group","label":"Binary"},{"id":"formats.binary.encoder","parent":"formats.binary","kind":"item","label":"Encoder","sources":[{"path":"src/formats/binary/encoder.cpp","line":1}]},{"id":"formats.binary.decoder","parent":"formats.binary","kind":"item","label":"Decoder","sources":[{"path":"src/formats/binary/decoder.cpp","line":1}]},{"id":"core","kind":"project","label":"Core"},{"id":"core.collections","parent":"core","kind":"group","label":"Collections"},{"id":"core.collections.queue","parent":"core.collections","kind":"item","label":"Queue","sources":[{"path":"src/core/collections/queue.cpp","line":1}]},{"id":"core.collections.map","parent":"core.collections","kind":"item","label":"Map","sources":[{"path":"src/core/collections/map.cpp","line":1}]},{"id":"core.diagnostics","parent":"core","kind":"group","label":"Diagnostics"},{"id":"core.diagnostics.logger","parent":"core.diagnostics","kind":"item","label":"Logger","sources":[{"path":"src/core/diagnostics/logger.cpp","line":1}]},{"id":"core.diagnostics.trace","parent":"core.diagnostics","kind":"item","label":"Trace","sources":[{"path":"src/core/diagnostics/trace.cpp","line":1}]}],"edges":[{"source":"workbench.workspace.editor","target":"workbench.workspace.documents","kind":"include"},{"source":"workbench.commands.run","target":"workbench.commands.export","kind":"include"},{"source":"workbench.workspace.editor","target":"workbench.commands.run","kind":"include"},{"source":"workbench","target":"processing","kind":"link","sources":[{"path":"src/workbench/CMakeLists.txt","line":10}]},{"source":"workbench.commands.run","target":"processing.pipeline.scheduler","kind":"import"},{"source":"workbench","target":"persistence","kind":"link","sources":[{"path":"src/workbench/CMakeLists.txt","line":10}]},{"source":"workbench.commands.run","target":"persistence.records.index","kind":"import"},{"source":"workbench","target":"formats","kind":"link","sources":[{"path":"src/workbench/CMakeLists.txt","line":10}]},{"source":"workbench.commands.run","target":"formats.text.reader","kind":"import"},{"source":"processing.pipeline.scheduler","target":"processing.pipeline.stages","kind":"include"},{"source":"processing.validation.rules","target":"processing.validation.report","kind":"include"},{"source":"processing.pipeline.scheduler","target":"processing.validation.rules","kind":"include"},{"source":"processing","target":"formats","kind":"link","sources":[{"path":"src/processing/CMakeLists.txt","line":10}]},{"source":"processing.validation.rules","target":"formats.text.reader","kind":"import"},{"source":"processing","target":"core","kind":"link","sources":[{"path":"src/processing/CMakeLists.txt","line":10}]},{"source":"processing.validation.rules","target":"core.collections.queue","kind":"import"},{"source":"persistence.records.index","target":"persistence.records.store","kind":"include"},{"source":"persistence.cache.memory","target":"persistence.cache.eviction","kind":"include"},{"source":"persistence.records.index","target":"persistence.cache.memory","kind":"include"},{"source":"persistence","target":"formats","kind":"link","sources":[{"path":"src/persistence/CMakeLists.txt","line":10}]},{"source":"persistence.cache.memory","target":"formats.text.reader","kind":"import"},{"source":"persistence","target":"core","kind":"link","sources":[{"path":"src/persistence/CMakeLists.txt","line":10}]},{"source":"persistence.cache.memory","target":"core.collections.queue","kind":"import"},{"source":"formats.text.reader","target":"formats.text.writer","kind":"include"},{"source":"formats.binary.encoder","target":"formats.binary.decoder","kind":"include"},{"source":"formats.text.reader","target":"formats.binary.encoder","kind":"include"},{"source":"formats","target":"core","kind":"link","sources":[{"path":"src/formats/CMakeLists.txt","line":10}]},{"source":"formats.binary.encoder","target":"core.collections.queue","kind":"import"},{"source":"core.collections.queue","target":"core.collections.map","kind":"include"},{"source":"core.diagnostics.logger","target":"core.diagnostics.trace","kind":"include"},{"source":"core.collections.queue","target":"core.diagnostics.logger","kind":"include"}]}</script>
+  <script type="module">
+const modules = Object.create(null);
+
+modules["src/graph/relations.mjs"] = (() => {
+function indexBy(items, key) {
+  const index = new Map();
+  for (const item of items) {
+    const id = key(item);
+    if (!index.has(id)) index.set(id, []);
+    index.get(id).push(item);
+  }
+  return index;
+}
+
+function relationIndex(edges) {
+  return { outgoing: indexBy(edges, edge => edge.source), incoming: indexBy(edges, edge => edge.target) };
+}
+
+function neighbors(index, id, depth) {
+  const nodes = new Set([id]);
+  const edges = new Set();
+  let frontier = [id];
+  for (let level = 0; level < depth; level++) {
+    const next = [];
+    for (const node of frontier) {
+      for (const edge of [...(index.outgoing.get(node) ?? []), ...(index.incoming.get(node) ?? [])]) {
+        edges.add(edge.id);
+        const other = edge.source === node ? edge.target : edge.source;
+        if (nodes.has(other)) continue;
+        nodes.add(other);
+        next.push(other);
+      }
+    }
+    frontier = next;
+  }
+  return { nodes, edges };
+}
+
+function findPath(index, start, end) {
+  const previous = new Map([[start, null]]);
+  const queue = [start];
+  for (let i = 0; i < queue.length && !previous.has(end); i++) {
+    for (const edge of index.outgoing.get(queue[i]) ?? []) {
+      if (previous.has(edge.target)) continue;
+      previous.set(edge.target, edge);
+      queue.push(edge.target);
+    }
+  }
+  if (!previous.has(end)) return null;
+  const result = [];
+  for (let edge = previous.get(end); edge; edge = previous.get(edge.source)) result.push(edge);
+  return result.reverse();
+}
+return { indexBy, relationIndex, neighbors, findPath };
+})();
+
+modules["src/views/selection.mjs"] = (() => {
+const { neighbors } = modules["src/graph/relations.mjs"];
+
+function renderSelection(host, viewport, scene, state) {
+  const selected = state.selected;
+  let emphasis;
+  if (state.path) {
+    emphasis = {
+      nodes: new Set([state.pathSource, selected, ...state.path.flatMap(edge => [edge.source, edge.target])]),
+      edges: new Set(state.path.map(edge => edge.id)),
+    };
+  } else if (state.focused && selected && scene.nodes.has(selected)) {
+    emphasis = neighbors(scene.index, selected, state.depth ?? 1);
+  }
+  if (viewport?.highlight) viewport.highlight(emphasis, selected);
+  for (const card of host.querySelectorAll('.card[data-node-id]')) {
+    card.classList.toggle('selected', card.dataset.nodeId === selected);
+    card.classList.toggle('dimmed', Boolean(emphasis && !emphasis.nodes.has(card.dataset.nodeId)));
+  }
+  for (const wire of host.querySelectorAll('.wire[data-edge-id]')) {
+    wire.classList.toggle('dimmed', Boolean(emphasis && !emphasis.edges.has(wire.dataset.edgeId)));
+    wire.classList.toggle('marked', Boolean(emphasis?.edges.has(wire.dataset.edgeId)));
+  }
+}
+return { renderSelection };
+})();
+
+modules["src/graph/cycles.mjs"] = (() => {
+function components(links) {
+  const discovered = new Map();
+  const stack = [];
+  const active = new Set();
+  const result = new Map();
+  let order = 0;
+  function visit(id) {
+    const entry = { index: order, low: order };
+    order++;
+    discovered.set(id, entry);
+    stack.push(id);
+    active.add(id);
+    for (const next of links.get(id)) {
+      if (!discovered.has(next)) {
+        visit(next);
+        entry.low = Math.min(entry.low, discovered.get(next).low);
+      } else if (active.has(next)) {
+        entry.low = Math.min(entry.low, discovered.get(next).index);
+      }
+    }
+    if (entry.low !== entry.index) return;
+    let member;
+    do {
+      member = stack.pop();
+      active.delete(member);
+      result.set(member, id);
+    } while (member !== id);
+  }
+  for (const id of links.keys()) if (!discovered.has(id)) visit(id);
+  return result;
+}
+
+function cycleGroups(graph) {
+  const links = new Map(graph.nodes.map(node => [node.id, []]));
+  for (const edge of graph.edges) links.get(edge.source).push(edge.target);
+  const groups = new Map();
+  for (const [id, key] of components(links)) {
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(id);
+  }
+  return [...groups.values()].filter(group => group.length > 1);
+}
+return { components, cycleGroups };
+})();
+
+modules["src/data/model.mjs"] = (() => {
+const { indexBy, relationIndex } = modules["src/graph/relations.mjs"];
+const { cycleGroups } = modules["src/graph/cycles.mjs"];
+
+const sorted = nodes => nodes.sort((a, b) => a.label.localeCompare(b.label));
+
+function createModel(data) {
+  if (data.version !== 1) throw new Error('Unknown data file version.');
+  const libraries = Object.values(data.libraries);
+  const modules = Object.values(data.modules);
+  const modulesByLibrary = new Map(libraries.map(library => [library.name, []]));
+  for (const module of modules) modulesByLibrary.get(module.library).push(module);
+
+  const libraryNode = library => ({
+    id: library.name, label: library.label ?? library.name, type: 'library', library: library.name,
+    count: modulesByLibrary.get(library.name).length,
+    next: { library: library.name },
+  });
+
+  const groups = new Map([...modulesByLibrary].map(([id, members]) => [id, indexBy(members, module => module.group)]));
+  const importsByLibrary = indexBy(data.imports, record => record.library);
+  const includesByLibrary = indexBy(data.includes, record => record.library);
+  const linksByLibrary = indexBy(data.links, record => record.source);
+  const importsTo = indexBy(data.imports, record => record.target);
+  const importsFrom = indexBy(data.imports, record => record.source);
+  const linksTo = indexBy(data.links, record => record.target);
+  const cache = new Map();
+  const safeModule = id => Object.hasOwn(data.modules, id) ? data.modules[id] : undefined;
+
+  function moduleNode(module) {
+    return {
+      id: module.name, label: module.label ?? module.name,
+      type: 'module', library: module.library, group: module.group, groupLabel: data.groups?.[module.group]?.label,
+    };
+  }
+
+  // The graph stores consumer → provider. Every visible line retains its declarations.
+  function connections(records, resolve) {
+    const edges = new Map();
+    for (const record of records) {
+      const [source, target] = resolve(record);
+      if (!source || !target || source === target) continue;
+      const id = JSON.stringify([source, target]);
+      if (!edges.has(id)) edges.set(id, { id, source, target, records: [] });
+      edges.get(id).records.push(record);
+    }
+    return [...edges.values()];
+  }
+
+  const overview = {
+    title: data.name,
+    nodes: sorted(libraries.map(libraryNode)),
+    edges: connections(data.links, link => [
+      link.source, !link.expression && Object.hasOwn(data.libraries, link.target) ? link.target : null,
+    ]),
+  };
+  const groupLabel = id => data.groups?.[id]?.label ?? id;
+  const libraryLabel = id => data.libraries[id]?.label ?? id;
+
+  function view(location = {}) {
+    const { library, group } = location;
+    if (!library) return overview;
+    const key = JSON.stringify([library, group]);
+    if (cache.has(key)) return cache.get(key);
+    const byGroup = groups.get(library);
+    const nodes = group === undefined
+      ? sorted([...byGroup].map(([name, members]) => ({
+        id: name, label: groupLabel(name), type: 'group', library, group: name, count: members.length,
+        next: { library, group: name },
+      })))
+      : sorted(byGroup.get(group).map(moduleNode));
+    const ids = new Set(nodes.map(node => node.id));
+    function resolve(name) {
+      if (group !== undefined) return ids.has(name) ? name : null;
+      const module = safeModule(name);
+      return module?.library === library ? module.group : null;
+    }
+    const graph = {
+      title: group === undefined ? libraryLabel(library) : groupLabel(group),
+      nodes,
+      edges: connections(importsByLibrary.get(library) ?? [], record => [
+        resolve(record.source), resolve(record.target),
+      ]),
+    };
+    cache.set(key, graph);
+    return graph;
+  }
+
+  function details(node) {
+    const library = data.libraries[node.library];
+    const wanted = moduleName => {
+      if (node.type === 'library') return true;
+      if (node.type === 'group') return safeModule(moduleName)?.group === node.group;
+      return moduleName === node.id;
+    };
+    const members = modulesByLibrary.get(node.library).filter(module => wanted(module.name));
+    const imports = node.type === 'module' ? importsFrom.get(node.id) ?? []
+      : (importsByLibrary.get(node.library) ?? []).filter(record => wanted(record.source));
+    const includes = (includesByLibrary.get(node.library) ?? []).filter(record => wanted(record.source));
+    const membersSet = new Set(members.map(module => module.name));
+    const boundary = record => !membersSet.has(record.source);
+    const incoming = node.type === 'library' ? linksTo.get(node.library) ?? []
+      : members.flatMap(module => (importsTo.get(module.name) ?? []).filter(boundary));
+    const outgoing = node.type === 'library' ? linksByLibrary.get(node.library) ?? []
+      : imports.filter(record => !membersSet.has(record.target));
+    return {
+      members, imports, includes,
+      incoming, outgoing,
+      definition: node.type === 'library' ? library : node.type === 'group' ? data.groups?.[node.id] : null,
+      generic: data.generic,
+    };
+  }
+
+  function boundaries(location, graph) {
+    const byId = new Map(graph.nodes.map(node => [node.id, node]));
+    const shown = name => {
+      const module = safeModule(name);
+      if (module?.library !== location.library) return null;
+      const id = location.group === undefined ? module.group : name;
+      return byId.has(id) ? id : null;
+    };
+    const unique = new Map();
+    for (const record of data.imports) {
+      const source = shown(record.source);
+      const target = shown(record.target);
+      if (Boolean(source) === Boolean(target)) continue;
+      const outgoing = Boolean(source);
+      const type = outgoing ? 'imports' : 'users';
+      const id = outgoing ? source : target;
+      if (!unique.has(type)) unique.set(type, { type, members: new Set(), records: [] });
+      const boundary = unique.get(type);
+      boundary.members.add(id);
+      boundary.records.push(record);
+    }
+    return [...unique.values()];
+  }
+
+  const allModules = sorted(modules.map(moduleNode));
+  let fullGraph;
+  function full() {
+    if (!fullGraph) {
+      const edges = connections(data.imports, record => [
+        Object.hasOwn(data.modules, record.source) ? record.source : null,
+        Object.hasOwn(data.modules, record.target) ? record.target : null,
+      ]);
+      fullGraph = { title: 'Overview', nodes: allModules, edges, index: relationIndex(edges) };
+    }
+    return fullGraph;
+  }
+
+  const searchEntries = [
+    ...overview.nodes.map(node => ({ node, location: {}, path: data.libraries[node.id].path ??
+      data.libraries[node.id].files?.map(file => file.path).join(' ') })),
+    ...libraries.flatMap(library => [...groups.get(library.name).keys()].map(group => ({
+      node: { id: group, label: groupLabel(group), type: 'group', library: library.name, group },
+      location: { library: library.name }, path: library.name,
+    }))),
+    ...allModules.map(node => ({
+      node, location: { library: node.library, group: node.group },
+      path: data.modules[node.id].files.map(file => file.path).join(' '),
+    })),
+  ].map(entry => ({
+    ...entry,
+    text: [entry.node.id, entry.node.label, libraryLabel(entry.node.library), groupLabel(entry.node.group), entry.path].join(' ').toLowerCase(),
+  }));
+
+  function search(query, limit = 18) {
+    const input = query.trim().toLowerCase();
+    const words = input.split(/\s+/);
+    return searchEntries.filter(entry => words.every(word => entry.text.includes(word)))
+      .sort((a, b) => Number(b.node.label.toLowerCase().startsWith(input)) - Number(a.node.label.toLowerCase().startsWith(input)))
+      .slice(0, limit);
+  }
+
+  return { view, details, full, search, boundaries, libraryLabel, groupLabel,
+    cycles: () => cycleGroups(full()), generic: data.generic };
+}
+return { createModel };
+})();
+
+modules["src/data/input.mjs"] = (() => {
+// The v1 interchange format describes a three-level graph independent of language.
+// Adapt it to the same model used by scanner reports.
+function normalizeInput(input) {
+  if (input?.format !== 'dependency-viewer') {
+    if (input?.version === 1 && input.libraries && input.modules &&
+        ['links', 'imports', 'includes'].every(key => Array.isArray(input[key]))) return input;
+    throw new Error('Expected Dependency Viewer format version 1.');
+  }
+  if (input.version !== 1) throw new Error('Unsupported format version.');
+  const require = (ok, message) => { if (!ok) throw new Error(message); };
+  const string = value => typeof value === 'string' && value.trim() === value && value.length > 0;
+  const fields = (value, allowed, where) => {
+    require(Object.keys(value).every(key => allowed.includes(key)), where + ': Unknown field.');
+  };
+  fields(input, ['format', 'version', 'name', 'nodes', 'edges'], 'Dataset');
+  require(string(input.name), 'Missing name.');
+  require(Array.isArray(input.nodes) && input.nodes.length > 0, 'nodes must contain at least one node.');
+  require(Array.isArray(input.edges), 'edges must be an array.');
+  const byId = new Map();
+  function sources(items, where) {
+    require(Array.isArray(items), where + ': sources must be an array.');
+    for (const source of items) {
+      require(source && string(source.path) && Number.isSafeInteger(source.line) && source.line >= 1,
+        where + ': Source locations require path and line starting at 1.');
+      fields(source, ['path', 'line'], where);
+    }
+    return items;
+  }
+  for (const node of input.nodes) {
+    require(node && string(node.id) && string(node.label) && ['project', 'group', 'item'].includes(node.kind),
+      'Each node requires id, label, and kind (project, group, or item).');
+    require(!byId.has(node.id), 'Duplicate node ID: ' + node.id);
+    fields(node, ['id', 'label', 'kind', 'parent', 'sources'], node.id);
+    sources(node.sources === undefined ? [] : node.sources, node.id);
+    byId.set(node.id, node);
+  }
+  const libraries = Object.create(null);
+  const modules = Object.create(null);
+  const groups = Object.create(null);
+  for (const node of byId.values()) {
+    const parent = byId.get(node.parent);
+    if (node.kind === 'project') {
+      require(node.parent === undefined, node.id + ': Project nodes cannot have a parent.');
+      libraries[node.id] = { name: node.id, label: node.label, files: node.sources ?? [] };
+    } else if (node.kind === 'group') {
+      require(parent?.kind === 'project', node.id + ': parent must refer to a project.');
+      groups[node.id] = { label: node.label, library: parent.id, files: node.sources ?? [] };
+    } else {
+      require(parent?.kind === 'group' && byId.get(parent.parent)?.kind === 'project',
+        node.id + ': parent must refer to a group within a project.');
+      modules[node.id] = { name: node.id, label: node.label, library: parent.parent,
+        group: parent.id, files: node.sources ?? [] };
+    }
+  }
+  const links = [];
+  const imports = [];
+  for (const edge of input.edges) {
+    require(edge && string(edge.kind), 'Each edge requires kind.');
+    fields(edge, ['source', 'target', 'kind', 'sources'], 'Edge');
+    const source = byId.get(edge.source);
+    const target = byId.get(edge.target);
+    require(source && target && source.kind === target.kind && ['project', 'item'].includes(source.kind),
+      'Invalid edge ' + edge.source + ' → ' + edge.target + '.');
+    require(source !== target, 'Self-edges are unsupported in version 1: ' + source.id);
+    const evidence = sources(edge.sources === undefined ? [] : edge.sources, source.id + ' → ' + target.id);
+    for (const location of evidence.length ? evidence : [{}]) {
+      const record = { source: source.id, target: target.id, kind: edge.kind, ...location };
+      if (source.kind === 'project') links.push(record);
+      else imports.push({ ...record, library: modules[source.id].library });
+    }
+  }
+  // Explicit empty groups would otherwise disappear from the overview.
+  const populated = new Set(Object.values(modules).map(module => module.group));
+  for (const group of Object.keys(groups)) require(populated.has(group), 'Group without items: ' + group);
+  return { version: 1, generic: true, name: input.name, libraries, groups, modules, links, imports, includes: [] };
+}
+return { normalizeInput };
+})();
+
+modules["src/ui/dataset-picker.mjs"] = (() => {
+const { createModel } = modules["src/data/model.mjs"];
+const { normalizeInput } = modules["src/data/input.mjs"];
+
+function bindDatasetPicker(button, input, { accept, reportError }) {
+  button.onclick = () => input.click();
+  input.onchange = async () => {
+    const file = input.files[0];
+    input.value = '';
+    if (!file) return;
+    try {
+      const data = normalizeInput(JSON.parse(await file.text()));
+      accept(data, createModel(data));
+    } catch (error) {
+      reportError(error.message);
+    }
+  };
+}
+return { bindDatasetPicker };
+})();
+
+modules["src/navigation/history.mjs"] = (() => {
+class ViewerHistory {
+  #browser;
+  #session;
+  #entries;
+  #index;
+
+  constructor(browser) {
+    this.#browser = browser;
+    this.reset();
+  }
+
+  get current() { return this.#entries[this.#index]; }
+  get previous() { return this.#entries[this.#index - 1]; }
+  get index() { return this.#index; }
+  get canGoBack() { return this.#index > 0; }
+  get canGoForward() { return this.#index + 1 < this.#entries.length; }
+
+  reset() {
+    this.#session = crypto.randomUUID?.() ?? String(Date.now());
+    this.#entries = [{ location: {} }];
+    this.#index = 0;
+    this.#browser.replaceState(this.#browserState(), '');
+  }
+
+  push(entry) {
+    this.#index++;
+    this.#entries.splice(this.#index, this.#entries.length, entry);
+    this.#browser.pushState(this.#browserState(), '');
+  }
+
+  back() { if (this.canGoBack) this.#browser.back(); }
+  forward() { if (this.canGoForward) this.#browser.forward(); }
+
+  resolve(state) {
+    if (state?.viewer === this.#session) return this.#entries[state.index];
+  }
+
+  activate(state) { this.#index = state.index; }
+
+  #browserState() { return { viewer: this.#session, index: this.#index }; }
+}
+return { ViewerHistory };
+})();
+
+modules["src/ui/shortcuts.mjs"] = (() => {
+function bindShortcuts({ canGoBack, canGoForward, back, forward, openSearch, zoom, fit, openHelp, escape }) {
+  document.addEventListener('mousedown', event => {
+    if ((event.button === 3 && canGoBack()) || (event.button === 4 && canGoForward())) {
+      event.preventDefault();
+    }
+  });
+  document.addEventListener('auxclick', event => {
+    if (event.button !== 3 && event.button !== 4) return;
+    if (event.button === 3 && !canGoBack()) return;
+    if (event.button === 4 && !canGoForward()) return;
+    event.preventDefault();
+    if (event.button === 3) back();
+    else forward();
+  });
+  document.addEventListener('keydown', event => {
+    if (document.querySelector('dialog[open]') || event.defaultPrevented) return;
+    if ((event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey && event.key.toLowerCase() === 'f') {
+      event.preventDefault();
+      openSearch();
+      return;
+    }
+    if (event.target.closest('input, textarea, select, [contenteditable]')) return;
+    if ((event.altKey && ['ArrowLeft', 'ArrowRight'].includes(event.key)) ||
+        ['BrowserBack', 'BrowserForward'].includes(event.key)) {
+      event.preventDefault();
+      if (['ArrowLeft', 'BrowserBack'].includes(event.key)) back();
+      else forward();
+      return;
+    }
+    if (event.key === '/') {
+      event.preventDefault();
+      openSearch();
+    }
+    if (event.ctrlKey || event.metaKey || event.altKey) return;
+    if (['+', '=', '-'].includes(event.key)) {
+      event.preventDefault();
+      zoom(event.key === '-' ? 1.25 : .8);
+    }
+    if (['0', 'f', 'F'].includes(event.key)) {
+      event.preventDefault();
+      fit();
+    }
+    if (event.key === '?') openHelp();
+    if (event.key === 'Escape') escape();
+  });
+}
+return { bindShortcuts };
+})();
+
+modules["src/ui/preferences.mjs"] = (() => {
+function rememberCheckbox(control) {
+  const key = 'dependency-viewer:' + control.id;
+  try {
+    const saved = localStorage.getItem(key);
+    if (saved === 'true' || saved === 'false') control.checked = saved === 'true';
+  } catch {
+    // Preferences still work for this page when browser storage is blocked.
+  }
+  control.addEventListener('change', () => {
+    try { localStorage.setItem(key, String(control.checked)); } catch {}
+  });
+}
+return { rememberCheckbox };
+})();
+
+modules["src/ui/icons.mjs"] = (() => {
+const shapes = {
+  library: 'M3 7 12 3l9 4-9 4-9-4Z M3 12l9 4 9-4 M3 17l9 4 9-4',
+  group: 'M3 7h7l2 3h9v10H3V7Z',
+  module: 'M8 3h8l5 5v13H3V3h5 M15 3v6h6 M7 13h10 M7 17h7',
+  search: 'M16 16l5 5 M18 10a8 8 0 1 1-16 0 8 8 0 1 1 16 0',
+  atlas: 'M3 3h7v7H3z M14 3h7v7h-7z M3 14h7v7H3z M14 14h7v7h-7z',
+  focus: 'M8 3H3v5 M16 3h5v5 M21 16v5h-5 M8 21H3v-5 M12 9v6 M9 12h6',
+  path: 'M4 17h4l4-10h8 M17 4l3 3-3 3 M4 14v6',
+  copy: 'M8 8h12v12H8z M4 16V4h12',
+  check: 'M4 12l5 5L20 6',
+  open: 'M3 7h7l2 2h9l-3 11H3z M3 7V4h7l2 3h7',
+  back: 'M10 5l-7 7 7 7 M3 12h18',
+  close: 'M6 6l12 12 M18 6 6 18',
+  fit: 'M8 3H3v5 M16 3h5v5 M21 16v5h-5 M8 21H3v-5 M8 8h8v8H8z',
+  plus: 'M5 12h14 M12 5v14',
+  minus: 'M5 12h14',
+  cycle: 'M20 7v5h-5 M4 17v-5h5 M4 10a8 8 0 0 1 13-5l3 7 M20 14a8 8 0 0 1-13 5l-3-7',
+  help: 'M22 12a10 10 0 1 1-20 0 10 10 0 1 1 20 0 M9 9a3 3 0 0 1 6 0c0 2-3 2-3 5 M12 18h.01',
+  incoming: 'M4 5v14 M20 12H8 M13 7l-5 5 5 5',
+  outgoing: 'M20 5v14 M4 12h12 M11 7l5 5-5 5',
+};
+
+function icon(name, cssClass = 'tool-icon') {
+  const ns = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(ns, 'svg');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('class', cssClass);
+  svg.setAttribute('aria-hidden', 'true');
+  const path = document.createElementNS(ns, 'path');
+  path.setAttribute('d', shapes[name]);
+  path.setAttribute('fill', 'none');
+  path.setAttribute('stroke', 'currentColor');
+  path.setAttribute('stroke-width', '1.7');
+  path.setAttribute('stroke-linecap', 'round');
+  path.setAttribute('stroke-linejoin', 'round');
+  svg.append(path);
+  return svg;
+}
+
+function setIconButton(button, glyph, label) {
+  button.replaceChildren(icon(glyph));
+  button.classList.add('icon-button');
+  button.setAttribute('aria-label', label);
+  button.title = label;
+  return button;
+}
+return { icon, setIconButton };
+})();
+
+modules["src/ui/controls.mjs"] = (() => {
+const { setIconButton } = modules["src/ui/icons.mjs"];
+
+function updateControls(select, host, state, { data, model, canGoBack, pathStart, atlasLevel }) {
+  const { library, group, atlas } = state.location;
+  select('breadcrumb').textContent = [data.name, atlas ? 'Overview' : model.libraryLabel(library), model.groupLabel(group)].filter(Boolean).join(' / ');
+  select('back').hidden = !canGoBack;
+  for (const [id, active] of [['graph-tab', !atlas], ['atlas-tab', Boolean(atlas)]]) {
+    select(id).setAttribute('aria-selected', String(active));
+    select(id).tabIndex = active ? 0 : -1;
+  }
+  host.setAttribute('role', 'tabpanel');
+  host.setAttribute('aria-labelledby', atlas ? 'atlas-tab' : 'graph-tab');
+  select('atlas-controls').hidden = !atlas;
+  if (atlas) updateAtlasControls(select, state, atlasLevel);
+  select('focus').disabled = false;
+  select('focus').setAttribute('aria-pressed', String(Boolean(state.focused)));
+  select('depth').hidden = !(state.focused && state.selected);
+  const depth = state.depth ?? 1;
+  const depthButton = select('depth');
+  depthButton.title = depth === 1 ? '1 level · switch' : '2 levels · switch';
+  depthButton.setAttribute('aria-label', depthButton.title);
+  depthButton.setAttribute('aria-pressed', String(depth === 2));
+  select('path').disabled = !state.selected;
+  select('path').setAttribute('aria-pressed', String(Boolean(pathStart)));
+}
+
+function updateAtlasControls(select, state, atlasLevel) {
+  for (const button of select('atlas-controls').querySelectorAll('[data-level]')) {
+    button.setAttribute('aria-pressed', String(button.dataset.level === String(state.fixedLevel ?? 'auto')));
+  }
+  select('atlas-lines').setAttribute('aria-pressed', String(Boolean(state.showLines)));
+  const auto = select('atlas-controls').querySelector('[data-level="auto"]');
+  auto.title = 'Automatic level · ' + atlasLevel;
+  auto.setAttribute('aria-label', auto.title);
+}
+
+function initializeControlIcons(select) {
+  for (const [id, glyph, label] of [
+    ['focus', 'focus', 'Focus'], ['path', 'path', 'Path'], ['back', 'back', 'Back · Alt+←'],
+    ['open-data', 'open', 'Open JSON'], ['cycles', 'cycle', 'Cycles'], ['help', 'help', 'Keyboard shortcuts and settings · ?'],
+    ['detail-close', 'close', 'Close details'],
+    ['help-close', 'close', 'Close keyboard shortcuts'], ['fit', 'fit', 'Fit · F or 0'],
+    ['zoom-in', 'plus', 'Zoom in'], ['zoom-out', 'minus', 'Zoom out'],
+    ['atlas-lines', 'path', 'Internal connections'],
+    ['depth', 'group', 'Focus depth'],
+  ]) {
+    setIconButton(select(id), glyph, label);
+  }
+  for (const [level, glyph, label] of [
+    ['auto', 'fit', 'Automatic level'], ['0', 'library', 'Projects or libraries'],
+    ['1', 'group', 'Groups'], ['2', 'module', 'Items or modules'],
+  ]) {
+    setIconButton(select('atlas-controls').querySelector('[data-level="' + level + '"]'), glyph, label);
+  }
+}
+
+function bindViewControls(select, {
+  switchTab, getEntry, getViewport, refreshAtlasControls, back, dismissDetails, fit, zoom,
+}) {
+  select('graph-tab').onclick = () => switchTab(false);
+  select('atlas-tab').onclick = () => switchTab(true);
+  select('view-tabs').onkeydown = event => {
+    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key) || event.altKey) return;
+    event.preventDefault();
+    const atlas = event.key === 'End' || (event.key !== 'Home' && event.target.id === 'graph-tab');
+    select(atlas ? 'atlas-tab' : 'graph-tab').focus();
+    switchTab(atlas);
+  };
+  for (const button of select('atlas-controls').querySelectorAll('[data-level]')) {
+    button.onclick = () => {
+      getEntry().fixedLevel = button.dataset.level === 'auto' ? null : Number(button.dataset.level);
+      if (getEntry().fixedLevel !== 2) {
+        getEntry().showLines = false;
+        getViewport()?.showLines(false);
+      }
+      getViewport()?.setLevel(getEntry().fixedLevel);
+      refreshAtlasControls();
+    };
+  }
+  select('atlas-lines').onclick = () => {
+    getEntry().showLines = !getEntry().showLines;
+    if (getEntry().showLines) {
+      getEntry().fixedLevel = 2;
+      getViewport()?.setLevel(2);
+    }
+    getViewport()?.showLines(getEntry().showLines);
+    refreshAtlasControls();
+  };
+  select('back').onclick = back;
+  select('detail-close').onclick = dismissDetails;
+  select('help').onclick = () => select('help-dialog').showModal();
+  select('help-close').onclick = () => select('help-dialog').close();
+  select('fit').onclick = event => fit(event.detail > 0);
+  select('zoom-in').onclick = () => zoom(0.8);
+  select('zoom-out').onclick = () => zoom(1.25);
+}
+return { updateControls, updateAtlasControls, initializeControlIcons, bindViewControls };
+})();
+
+modules["src/ui/details.mjs"] = (() => {
+const { setIconButton } = modules["src/ui/icons.mjs"];
+
+const panel = document.querySelector('#details');
+const heading = document.querySelector('#detail-title');
+const body = document.querySelector('#detail-body');
+
+function element(tag, text, className) {
+  const node = document.createElement(tag);
+  if (text !== undefined) node.textContent = text;
+  if (className) node.className = className;
+  return node;
+}
+
+function source(record) {
+  const location = record.path ? record.path + ':' + record.line : 'No source location';
+  const line = element('li', undefined, 'source');
+  const row = element('div', undefined, 'source-row');
+  const path = element('span', location, 'source-path');
+  row.append(path);
+  line.append(row);
+  if (!record.path) return line;
+  const copy = setIconButton(element('button', undefined, 'copy'), 'copy', 'Copy source location');
+  copy.type = 'button';
+  copy.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(location);
+      setIconButton(copy, 'check', 'Source location copied');
+    } catch {
+      const field = element('input');
+      field.value = location;
+      field.readOnly = true;
+      field.setAttribute('aria-label', 'Source location to copy');
+      field.className = 'source-path';
+      path.replaceWith(field);
+      field.select();
+    }
+  });
+  row.append(copy);
+  const conditions = [...(record.conditions ?? [])];
+  if (record.scope) conditions.unshift(record.scope);
+  if (record.reexport) conditions.unshift('export import');
+  for (const condition of conditions) line.append(element('small', condition));
+  return line;
+}
+
+function section(title, records, label) {
+  if (records.length === 0) return;
+  const block = element('section');
+  block.append(element('h3', title));
+  const rows = new Map();
+  for (const record of records) {
+    const name = label(record);
+    if (!rows.has(name)) rows.set(name, []);
+    rows.get(name).push(record);
+  }
+  for (const [name, occurrences] of rows) {
+    const row = element('details');
+    row.append(element('summary', name + ' · ' + occurrences.length));
+    const list = element('ul');
+    for (const occurrence of occurrences) list.append(source(occurrence));
+    row.append(list);
+    block.append(row);
+  }
+  body.append(block);
+}
+
+function start(title, subtitle, pointerX) {
+  heading.textContent = title;
+  body.replaceChildren();
+  if (subtitle) body.append(element('p', subtitle, 'muted'));
+  // Keep the first click's target available for a second click.
+  const placeLeft = pointerX !== undefined && pointerX >= window.innerWidth / 2;
+  panel.classList.toggle('details-left', placeLeft);
+  panel.classList.toggle('details-beside-target', pointerX !== undefined);
+  panel.hidden = false;
+  panel.scrollTop = 0;
+  panel.querySelector('button').focus();
+}
+
+function closeDetails() {
+  panel.hidden = true;
+}
+
+function showNode(node, details, pointerX) {
+  start(node.label, undefined, pointerX);
+  section('Uses', details.outgoing, record => record.target);
+  section('Used by', details.incoming, record => record.source ?? record.path);
+  if (details.definition) {
+    const list = element('ul');
+    const files = details.definition.files ?? (details.definition.path ? [details.definition] : []);
+    for (const file of files) list.append(source(file));
+    if (files.length) body.append(list);
+  }
+  section('Source files', details.members.flatMap(module => module.files.map(file => ({
+    ...file, name: module.name,
+  }))), record => record.name);
+  const outgoing = new Set(details.outgoing);
+  section('Internal dependencies', details.imports.filter(record => !outgoing.has(record)), record => record.target);
+  section('Includes', details.includes, record => record.target);
+}
+
+function showConnection(edge, from, to) {
+  const cmake = edge.records.every(record => 'scope' in record);
+  const kinds = [...new Set(edge.records.map(record => record.kind).filter(Boolean))];
+  start(from.label + ' → ' + to.label, kinds.length ? kinds.join(' · ') : cmake ? 'CMake' : 'C++ imports');
+  if (edge.pairs > 1) body.append(element('p', edge.pairs + ' connections'));
+  section('Source locations', edge.records, record => cmake ? record.target : (record.source + ' → ' + record.target));
+  if (!(edge.pairs > 1)) for (const row of body.querySelectorAll('details')) row.open = true;
+}
+
+function showPath(path, nodes, source, target) {
+  start(nodes.get(source).label + ' → ' + nodes.get(target).label,
+    path ? path.length + ' direct steps' : 'No directed path in this view.');
+  if (!path) return;
+  for (const edge of path) {
+    section(nodes.get(edge.source).label + ' → ' + nodes.get(edge.target).label, edge.records, record => record.target);
+  }
+}
+
+function showBoundary(boundary) {
+  const incoming = boundary.type === 'users';
+  start(incoming ? 'External consumers' : 'External dependencies');
+  section('Source locations', boundary.records, record => incoming ? record.source ?? record.path : record.target);
+}
+
+function showCycles(groups, locate) {
+  start('Cycles');
+  if (!groups.length) body.append(element('p', 'No cycles in the item graph.'));
+  for (const group of groups) {
+    const block = element('details');
+    block.open = groups.length === 1;
+    block.append(element('summary', group.length + ' mutually reachable items'));
+    const list = element('ul');
+    for (const node of group) {
+      const item = element('li');
+      const button = element('button', node.label);
+      button.onclick = () => locate(node.id);
+      item.append(button);
+      list.append(item);
+    }
+    block.append(list);
+    body.append(block);
+  }
+}
+return { closeDetails, showNode, showConnection, showPath, showBoundary, showCycles };
+})();
+
+modules["src/ui/boundaries.mjs"] = (() => {
+const { setIconButton } = modules["src/ui/icons.mjs"];
+const { showBoundary } = modules["src/ui/details.mjs"];
+
+function renderBoundaries(panel, host, boundaries) {
+  panel.replaceChildren();
+  for (const boundary of boundaries) {
+    const outgoing = boundary.type === 'imports';
+    const button = setIconButton(document.createElement('button'), outgoing ? 'outgoing' : 'incoming',
+      outgoing ? 'External dependencies' : 'External consumers');
+    button.type = 'button';
+    const highlight = active => {
+      for (const card of host.querySelectorAll('.card[data-node-id]')) {
+        card.classList.toggle('endpoint', active && boundary.members.has(card.dataset.nodeId));
+      }
+    };
+    button.onpointerenter = () => highlight(true);
+    button.onpointerleave = () => highlight(false);
+    button.onfocus = () => highlight(true);
+    button.onblur = () => highlight(false);
+    button.onclick = () => showBoundary(boundary);
+    panel.append(button);
+  }
+  panel.hidden = !panel.childElementCount;
+}
+return { renderBoundaries };
+})();
+
+modules["src/views/diagram/svg.mjs"] = (() => {
+const namespace = 'http://www.w3.org/2000/svg';
+
+function svgElement(name, attributes = {}, text) {
+  const element = document.createElementNS(namespace, name);
+  for (const [key, value] of Object.entries(attributes)) element.setAttribute(key, value);
+  if (text !== undefined) element.textContent = text;
+  return element;
+}
+
+function activate(element, label, action) {
+  element.setAttribute('role', 'button');
+  element.setAttribute('tabindex', '0');
+  element.setAttribute('aria-label', label);
+  element.addEventListener('click', action);
+  element.addEventListener('keydown', event => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      action(event);
+    }
+  });
+}
+
+function setView(svg, { x, y, width, height }) {
+  svg.setAttribute('viewBox', [x, y, width, height].join(' '));
+}
+return { svgElement, activate, setView };
+})();
+
+modules["src/views/diagram/flow.mjs"] = (() => {
+const { svgElement } = modules["src/views/diagram/svg.mjs"];
+
+function startFlow(wire) {
+  if (!matchMedia('(hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference)').matches) return;
+  if (wire.querySelector('.hover-flow')) return;
+  const path = wire.querySelector('.line').cloneNode(false);
+  path.setAttribute('class', 'hover-flow');
+  wire.append(path);
+}
+
+function pulseOnce(wire, path) {
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  wire.querySelector('.pulse')?.remove();
+  const dot = svgElement('circle', { class: 'pulse', r: 3.2 });
+  dot.style.offsetPath = `path("${path}")`;
+  wire.append(dot);
+  const motion = dot.animate([{ offsetDistance: '100%' }, { offsetDistance: '0%' }], { duration: 850, easing: 'linear' });
+  motion.finished.then(() => dot.remove(), () => dot.remove());
+}
+return { startFlow, pulseOnce };
+})();
+
+modules["src/graph/layout.mjs"] = (() => {
+const { components } = modules["src/graph/cycles.mjs"];
+
+const COLUMN_GAP = 120;
+const ROW_GAP = 28;
+
+function snapToGrid(value) {
+  return Math.round(value / 24) * 24;
+}
+
+// Tarjan's algorithm groups cycles in one pass over the scene.
+function layout(graph, { width = 210, height = 64, positions = new Map() } = {}) {
+  const links = new Map(graph.nodes.map(node => [node.id, []]));
+  for (const edge of graph.edges) links.get(edge.source).push(edge.target);
+  const component = components(links);
+  const dependencies = new Map([...component.values()].map(id => [id, new Set()]));
+  for (const edge of graph.edges) {
+    const source = component.get(edge.source);
+    const target = component.get(edge.target);
+    if (source !== target) dependencies.get(source).add(target);
+  }
+  const ranks = new Map();
+  function rank(id) {
+    if (!ranks.has(id)) ranks.set(id, Math.max(0, ...[...dependencies.get(id)].map(next => rank(next) + 1)));
+    return ranks.get(id);
+  }
+
+  const rankColumns = new Map();
+  graph.nodes.forEach(node => {
+    const column = rank(component.get(node.id));
+    if (!rankColumns.has(column)) rankColumns.set(column, []);
+    rankColumns.get(column).push(node);
+  });
+  const columns = [...rankColumns].sort(([a], [b]) => a - b).flatMap(([, members]) => {
+    const chunkSize = Math.ceil(members.length / Math.ceil(members.length / 7));
+    const chunks = [];
+    for (let index = 0; index < members.length; index += chunkSize) chunks.push(members.slice(index, index + chunkSize));
+    return chunks;
+  });
+  const maxRows = Math.max(1, ...columns.map(column => column.length));
+  const nodes = [];
+  for (const [column, rows] of columns.entries()) {
+    rows.forEach((node, row) => {
+      const position = positions.get(node.id) ?? {
+        x: snapToGrid(column * (width + COLUMN_GAP)),
+        y: snapToGrid((row + (maxRows - rows.length) / 2) * (height + ROW_GAP)),
+      };
+      nodes.push({ ...node, ...position, width, height });
+    });
+  }
+  return {
+    nodes,
+    edges: graph.edges,
+    left: Math.min(0, ...nodes.map(node => node.x)),
+    top: Math.min(0, ...nodes.map(node => node.y)),
+    right: Math.max(width, ...nodes.map(node => node.x + node.width)),
+    bottom: Math.max(height, ...nodes.map(node => node.y + node.height)),
+  };
+}
+
+function connectionPath(source, target, y, endY, lane, diagram) {
+  const endX = target.x + target.width;
+  if (source.x > endX) {
+    const x = source.x;
+    const blocked = diagram.nodes.some(node => (
+      node.x > endX && node.x + node.width < x &&
+      node.y < Math.max(y, endY) + 8 && node.y + node.height > Math.min(y, endY) - 8
+    ));
+    if (blocked) {
+      const outerY = (y + endY) / 2 < (diagram.top + diagram.bottom) / 2
+        ? diagram.top - 15 - lane * 5
+        : diagram.bottom + 15 + lane * 5;
+      return { d: `M ${x} ${y} H ${x - 22 - lane % 7 * 5} V ${outerY} H ${endX + 22 + lane % 7 * 5} V ${endY} H ${endX}`, outerY };
+    }
+    const mid = (x + endX) / 2;
+    return { d: `M ${x} ${y} C ${mid} ${y}, ${mid} ${endY}, ${endX} ${endY}` };
+  }
+  const x = source.x + source.width;
+  const laneX = endX + 18 + lane % 12 * 7;
+  if (source.x === target.x) return { d: `M ${x} ${y} H ${laneX} V ${endY} H ${endX}` };
+  const outerY = diagram.top - 15 - lane * 5;
+  return { d: `M ${x} ${y} H ${x + 18 + lane % 12 * 7} V ${outerY} H ${laneX} V ${endY} H ${endX}`, outerY };
+}
+return { snapToGrid, layout, connectionPath };
+})();
+
+modules["src/views/diagram/view.mjs"] = (() => {
+const { svgElement, activate, setView } = modules["src/views/diagram/svg.mjs"];
+const { startFlow, pulseOnce } = modules["src/views/diagram/flow.mjs"];
+const { connectionPath, layout } = modules["src/graph/layout.mjs"];
+const { icon } = modules["src/ui/icons.mjs"];
+
+const padding = 28;
+let previewClipId = 0;
+
+function labelLines(label, limit) {
+  const parts = label.match(/[^ .:/_\\]+[ .:/_\\]*|[ .:/_\\]+/g) ?? [label];
+  const lines = [];
+  let line = '';
+  for (let part of parts) {
+    if (line && line.length + part.length > limit) {
+      lines.push(line.trimEnd());
+      line = '';
+    }
+    while (part.length > limit) {
+      lines.push(part.slice(0, limit));
+      part = part.slice(limit);
+    }
+    line += part;
+  }
+  if (line) lines.push(line.trimEnd());
+  return lines;
+}
+
+function drawGraph(graph, options = {}) {
+  const miniature = !options.open;
+  const preview = options.preview;
+  const sizes = preview ? { width: 230, height: 138 } : {};
+  const prepared = options.diagram ?? layout(graph, { ...sizes, positions: options.positions });
+  const diagram = { ...prepared, nodes: prepared.nodes.map(node => ({ ...node })) };
+  const byId = new Map(diagram.nodes.map(node => [node.id, node]));
+  const svg = svgElement('svg', { class: miniature ? 'miniature' : 'diagram' });
+  svg.setAttribute('aria-label', graph.title);
+  if (miniature) svg.setAttribute('aria-hidden', 'true');
+  const wires = svgElement('g', { class: 'wires' });
+  const cards = svgElement('g', { class: 'cards' });
+  svg.append(wires, cards);
+  const pins = options.pins;
+  let hoveredCard;
+
+  const ports = new Map(diagram.nodes.map(node => [node.id, { left: [], right: [] }]));
+  const routes = [];
+  const incidentRoutes = new Map(diagram.nodes.map(node => [node.id, []]));
+  for (const edge of diagram.edges) {
+    const source = byId.get(edge.source);
+    const target = byId.get(edge.target);
+    const forward = source.x > target.x + target.width;
+    const outgoing = ports.get(source.id)[forward ? 'left' : 'right'];
+    const incoming = ports.get(target.id).right;
+    const route = { edge, source, target, outgoing, incoming };
+    routes.push(route);
+    incidentRoutes.get(source.id).push(route);
+    if (target !== source) incidentRoutes.get(target.id).push(route);
+    outgoing.push(route);
+    incoming.push(route);
+  }
+  const portY = (node, list, route) => node.y + node.height * (list.indexOf(route) + 1) / (list.length + 1);
+  let top = diagram.top;
+  let bottom = diagram.bottom;
+  for (const [lane, route] of routes.entries()) {
+    const { edge, source, target, outgoing, incoming } = route;
+    const { d, outerY } = connectionPath(source, target, portY(source, outgoing, route), portY(target, incoming, route), lane, diagram);
+    if (outerY !== undefined) {
+      top = Math.min(top, outerY);
+      bottom = Math.max(bottom, outerY);
+    }
+    const wire = svgElement('g', { class: 'wire' });
+    route.wire = wire;
+    route.lane = lane;
+    wire.append(svgElement('path', { d, class: 'line' }));
+    if (!miniature) {
+      wire.dataset.edgeId = edge.id;
+      wire.append(svgElement('path', { d, class: 'hit' }));
+      activate(wire, `${source.label} uses ${target.label}`, event => {
+        if (event.type === 'click') pulseOnce(wire, wire.querySelector('.line').getAttribute('d'));
+        options.inspectEdge(edge, source, target);
+      });
+      wire.addEventListener('pointerenter', event => {
+        setEndpoints(true);
+        if (event.pointerType === 'mouse') startFlow(wire);
+      });
+      wire.addEventListener('pointerleave', () => {
+        setEndpoints(false);
+        wire.querySelector('.hover-flow')?.remove();
+      });
+      wire.addEventListener('focus', () => setEndpoints(true));
+      wire.addEventListener('blur', () => setEndpoints(false));
+      function setEndpoints(active) {
+        cardElements.get(source.id)?.classList.toggle('endpoint', active);
+        cardElements.get(target.id)?.classList.toggle('endpoint', active);
+      }
+    }
+    wires.append(wire);
+  }
+
+  const cardElements = new Map();
+  for (const node of diagram.nodes) {
+    const card = svgElement('g', { class: 'card ' + node.type, transform: `translate(${node.x} ${node.y})` });
+    card.append(svgElement('rect', { class: 'box', width: node.width, height: node.height, rx: 9 }));
+    const labelX = miniature ? 14 : 37;
+    const available = node.width - labelX - (node.next && !miniature ? 36 : 12);
+    const rows = node.next ? 2 : 3;
+    const lines = labelLines(node.label, Math.floor(available / 8.7));
+    const fitting = lines.slice(0, rows - 1);
+    fitting.push(lines.slice(rows - 1).join(''));
+    const label = svgElement('text', { x: labelX, y: fitting.length > 1 ? 20 : 27, class: 'label' });
+    for (const [index, line] of fitting.entries()) {
+      const span = svgElement('tspan', { x: labelX, dy: index ? 15 : 0 }, line);
+      if (line.length * 8.7 > available) {
+        span.setAttribute('textLength', available);
+        span.setAttribute('lengthAdjust', 'spacingAndGlyphs');
+      }
+      label.append(span);
+    }
+    card.append(svgElement('title', {}, node.label), label);
+    if (!miniature) {
+      const symbol = icon(node.type, 'card-icon');
+      for (const [key, value] of Object.entries({ x: 13, y: 12, width: 17, height: 17 })) symbol.setAttribute(key, value);
+      card.append(symbol);
+    }
+    const mini = preview?.(node);
+    if (mini) {
+      card.append(svgElement('rect', { class: 'preview-box', x: 12, y: 40, width: node.width - 24, height: 88, rx: 6 }));
+      const id = 'preview-clip-' + ++previewClipId;
+      const clip = svgElement('clipPath', { id });
+      clip.append(svgElement('rect', { x: 13, y: 41, width: node.width - 26, height: 86, rx: 5 }));
+      for (const [key, value] of Object.entries({ x: 17, y: 44, width: node.width - 34, height: 80 })) {
+        mini.svg.setAttribute(key, value);
+      }
+      const previewContent = svgElement('g', { class: 'preview-content', 'clip-path': `url(#${id})` });
+      previewContent.append(mini.svg);
+      card.append(clip, previewContent);
+    }
+    if (!miniature) {
+      card.dataset.nodeId = node.id;
+      cardElements.set(node.id, card);
+      activate(card, node.label, event => options.open(node, event));
+      const incident = incidentRoutes.get(node.id);
+      function highlightHover(event) {
+        if (event.pointerType !== 'mouse') return;
+        showNeighbors(node.id);
+        for (const { wire } of incident) wire.classList.add('related');
+        for (const { wire } of incident.slice(0, 6)) startFlow(wire);
+      }
+      card.addEventListener('pointerenter', highlightHover);
+      card.addEventListener('pointerleave', event => {
+        const info = event.relatedTarget?.closest?.('.node-info');
+        if (info && info === card.nextElementSibling) return;
+        clearHover();
+      });
+      function clearHover() {
+        if (hoveredCard === node.id) showNeighbors(undefined);
+        for (const { wire } of incident) {
+          wire.classList.remove('related');
+          wire.querySelector('.hover-flow')?.remove();
+        }
+      }
+      function togglePin(event) {
+        event.preventDefault();
+        pins.toggle(node);
+        paintPins();
+      }
+      if (pins) card.addEventListener('contextmenu', togglePin);
+      if (node.next) {
+        const info = svgElement('g', { class: 'node-info' });
+        info.append(svgElement('rect', { width: 22, height: 22, rx: 5 }));
+        info.append(svgElement('text', { x: 11, y: 15 }, 'i'));
+        // Keep the info button out of the card's keyboard and click target.
+        info.setAttribute('transform', `translate(${node.x + node.width - 32} ${node.y + 12})`);
+        activate(info, 'Source locations for ' + node.label, () => options.inspectNode(node));
+        info.addEventListener('pointerenter', highlightHover);
+        info.addEventListener('pointerleave', clearHover);
+        if (pins) info.addEventListener('contextmenu', togglePin);
+        cards.append(card, info);
+        continue;
+      }
+    }
+    cards.append(card);
+  }
+
+  function showNeighbors(id) {
+    hoveredCard = id;
+    const incident = incidentRoutes.get(id) ?? [];
+    const neighbors = new Set([id, ...incident.flatMap(({ edge }) => [edge.source, edge.target])]);
+    svg.classList.toggle('show-neighbors', id !== undefined);
+    for (const [key, card] of cardElements) card.classList.toggle('hover-neighbor', neighbors.has(key));
+    const highlighted = new Set(incident);
+    for (const route of routes) route.wire.classList.toggle('hover-neighbor', highlighted.has(route));
+  }
+
+  function paintPins() {
+    const neighbors = new Set();
+    for (const { wire, source, target } of routes) {
+      const color = pins.color(source) ?? pins.color(target);
+      wire.classList.toggle('pinned', Boolean(color));
+      if (color) {
+        wire.style.setProperty('--pin-color', color);
+        neighbors.add(source.id);
+        neighbors.add(target.id);
+      } else wire.style.removeProperty('--pin-color');
+    }
+    for (const [id, card] of cardElements) {
+      const color = pins.color(byId.get(id));
+      card.classList.toggle('pinned', Boolean(color));
+      card.classList.toggle('pin-neighbor', neighbors.has(id));
+      if (color) card.style.setProperty('--pin-color', color);
+      else card.style.removeProperty('--pin-color');
+    }
+  }
+  if (pins) paintPins();
+
+  const bounds = {
+    x: diagram.left - padding, y: top - padding,
+    width: diagram.right - diagram.left + padding * 2 + 104,
+    height: bottom - top + padding * 2,
+  };
+  setView(svg, bounds);
+  function move(id, position, commit = false) {
+    const node = byId.get(id);
+    Object.assign(node, position);
+    const card = cardElements.get(id);
+    card.setAttribute('transform', `translate(${node.x} ${node.y})`);
+    if (node.next) card.nextElementSibling.setAttribute('transform', `translate(${node.x + node.width - 32} ${node.y + 12})`);
+    const extents = {
+      nodes: diagram.nodes,
+      top: Math.min(diagram.top, node.y),
+      bottom: Math.max(diagram.bottom, node.y + node.height),
+    };
+    for (const route of incidentRoutes.get(id)) {
+      const { source, target, outgoing, incoming, lane, wire } = route;
+      const { d } = connectionPath(source, target, portY(source, outgoing, route), portY(target, incoming, route), lane, extents);
+      for (const path of wire.querySelectorAll('path')) path.setAttribute('d', d);
+      route.wire.querySelector('.pulse')?.remove();
+      route.wire.querySelector('.hover-flow')?.remove();
+    }
+    if (!commit) return;
+    const right = Math.max(bounds.x + bounds.width, node.x + node.width + 104);
+    const bottom = Math.max(bounds.y + bounds.height, extents.bottom + padding + routes.length * 5);
+    bounds.x = Math.min(bounds.x, node.x - padding);
+    bounds.y = Math.min(bounds.y, extents.top - padding - routes.length * 5);
+    bounds.width = right - bounds.x;
+    bounds.height = bottom - bounds.y;
+  }
+  return { svg, bounds, nodes: byId, move };
+}
+return { drawGraph };
+})();
+
+modules["src/navigation/motion.mjs"] = (() => {
+const easeOut = 'cubic-bezier(0.23, 1, 0.32, 1)';
+
+function reducedMotion() {
+  return matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
+
+// CSS cubic-bezier(.77, 0, .175, 1) evaluated for the Canvas camera.
+function cameraProgress(time) {
+  const curve = (a, b, t) => 3 * (1 - t) ** 2 * t * a + 3 * (1 - t) * t ** 2 * b + t ** 3;
+  let low = 0;
+  let high = 1;
+  for (let i = 0; i < 15; i++) {
+    const t = (low + high) / 2;
+    if (curve(.77, .175, t) < time) low = t;
+    else high = t;
+  }
+  return curve(0, 1, (low + high) / 2);
+}
+
+function screenRect(svg, area = svg.viewBox.baseVal) {
+  const matrix = svg.getScreenCTM();
+  if (!matrix) return svg.getBoundingClientRect();
+  const a = new DOMPoint(area.x, area.y).matrixTransform(matrix);
+  const b = new DOMPoint(area.x + area.width, area.y + area.height).matrixTransform(matrix);
+  return { left: a.x, top: a.y, width: b.x - a.x, height: b.y - a.y };
+}
+
+function transitionGraph(host, previous, next, from, destination, reverse, { duration = 290, animateGrid, interactive, fadeOnly } = {}) {
+  const moving = reverse ? previous : next;
+  const base = reverse ? from : destination;
+  const tiny = reverse ? destination : from;
+  const reduced = reducedMotion();
+  const timings = { duration: reduced ? 100 : duration, easing: 'cubic-bezier(0.77, 0, 0.175, 1)',
+    fill: 'both', direction: reverse ? 'reverse' : 'normal' };
+  const flights = [];
+  const parent = reverse ? next : previous;
+  if (previous) {
+    previous.classList.add('departing');
+    previous.inert = true;
+    previous.setAttribute('aria-hidden', 'true');
+    if (!interactive) host.prepend(previous);
+  }
+  if (!reduced && !fadeOnly && moving && base?.width && base.height && tiny?.width && tiny.height) {
+    const transform = `translate(${tiny.left - base.left}px, ${tiny.top - base.top}px) scale(${tiny.width / base.width}, ${tiny.height / base.height})`;
+    moving.style.transformOrigin = `${base.left}px ${base.top}px`;
+    moving.style.zIndex = '1';
+    moving.classList.add('in-flight');
+    flights.push(moving.animate([{ transform, opacity: 0 }, { transform: 'none', opacity: 1 }], timings));
+  } else if (moving) {
+    const frames = reduced || fadeOnly ? [{ opacity: 0 }, { opacity: 1 }]
+      : [{ transform: 'scale(.94)', opacity: 0 }, { transform: 'none', opacity: 1 }];
+    flights.push(moving.animate(frames, timings));
+  }
+  if (parent) flights.push(parent.animate([{ opacity: 1 }, { opacity: 0 }], timings));
+  const gridFlight = reduced ? undefined : animateGrid?.({ ...timings, direction: 'normal', manual: Boolean(interactive) });
+  let finished = false;
+  function finish(arrived = true) {
+    if (finished) return;
+    finished = true;
+    for (const flight of flights) flight.cancel();
+    gridFlight?.cancel();
+    if (moving) {
+      moving.style.transformOrigin = '';
+      moving.style.zIndex = '';
+      moving.classList.remove('in-flight');
+    }
+    if (arrived) previous?.remove();
+    else if (previous) {
+      previous.classList.remove('departing');
+      previous.inert = false;
+      previous.removeAttribute('aria-hidden');
+    }
+  }
+  if (interactive) {
+    return driveTransition(flights, gridFlight, timings.duration, arrived => {
+      finish(arrived);
+      interactive(arrived);
+    });
+  }
+  const running = gridFlight ? [...flights, gridFlight] : flights;
+  Promise.allSettled(running.map(flight => flight.finished)).then(() => finish());
+  return finish;
+}
+
+function driveTransition(flights, grid, duration, finish) {
+  let progress = 0;
+  let target = 1;
+  let lastTime = performance.now();
+  let frame;
+  for (const flight of flights) {
+    flight.pause();
+    flight.currentTime = 0;
+  }
+
+  function draw(time) {
+    const step = Math.max(0, time - lastTime) / duration;
+    lastTime = time;
+    progress = target ? Math.min(1, progress + step) : Math.max(0, progress - step);
+    for (const flight of flights) flight.currentTime = progress * duration;
+    grid?.seek(progress);
+    if (progress === target) finish(target === 1);
+    else frame = requestAnimationFrame(draw);
+  }
+  frame = requestAnimationFrame(draw);
+  return {
+    aim(forward) { target = forward ? 1 : 0; },
+    cancel() { cancelAnimationFrame(frame); finish(false); },
+  };
+}
+
+function slideScene(previous, next, direction) {
+  const reduced = reducedMotion();
+  previous.classList.add('departing');
+  previous.inert = true;
+  previous.setAttribute('aria-hidden', 'true');
+  const timing = { duration: reduced ? 100 : 240, easing: 'cubic-bezier(0.77, 0, 0.175, 1)', fill: 'both' };
+  const outgoing = reduced ? [{ opacity: 1 }, { opacity: 0 }] : [
+    { transform: 'translateX(0)', opacity: 1 },
+    { transform: `translateX(${-direction * 16}%)`, opacity: 0 },
+  ];
+  const incoming = reduced ? [{ opacity: .35 }, { opacity: 1 }] : [
+    { transform: `translateX(${direction * 24}%)`, opacity: 0 },
+    { transform: 'translateX(0)', opacity: 1 },
+  ];
+  const animations = [previous.animate(outgoing, timing), next.animate(incoming, timing)];
+  let finished = false;
+  const finish = () => {
+    if (finished) return;
+    finished = true;
+    animations.forEach(animation => animation.cancel());
+    previous.remove();
+  };
+  Promise.allSettled(animations.map(animation => animation.finished)).then(finish);
+  return finish;
+}
+return { reducedMotion, cameraProgress, screenRect, transitionGraph, slideScene };
+})();
+
+modules["src/navigation/camera.mjs"] = (() => {
+function projectCamera(view, width, height) {
+  const scale = Math.min(width / view.width, height / view.height);
+  return {
+    scale,
+    x: (width - view.width * scale) / 2 - view.x * scale,
+    y: (height - view.height * scale) / 2 - view.y * scale,
+  };
+}
+
+function unproject(camera, point) {
+  return { x: (point.x - camera.x) / camera.scale, y: (point.y - camera.y) / camera.scale };
+}
+
+function pinPoint(view, camera, point, screen) {
+  const current = unproject(camera, screen);
+  return { ...view, x: view.x + point.x - current.x, y: view.y + point.y - current.y };
+}
+
+function relativePoint(rect, point) {
+  return { x: (point.x - rect.left) / rect.width, y: (point.y - rect.top) / rect.height };
+}
+return { projectCamera, unproject, pinPoint, relativePoint };
+})();
+
+modules["src/views/diagram/viewport.mjs"] = (() => {
+const { setView } = modules["src/views/diagram/svg.mjs"];
+const { snapToGrid } = modules["src/graph/layout.mjs"];
+const { reducedMotion } = modules["src/navigation/motion.mjs"];
+const { pinPoint, projectCamera, unproject } = modules["src/navigation/camera.mjs"];
+
+function enableViewport(svg, bounds, { initialView, nodes, previewMove, move, wheelNavigation, cameraScale }) {
+  let view = { ...(initialView ?? bounds) };
+  let drag = null;
+  let frame = 0;
+  let flight;
+  let dragFrame = 0;
+  let suppressClick = false;
+  function draw() {
+    setView(svg, view);
+    svg.classList.toggle('labels-small', svg.clientWidth / view.width < 0.48);
+    const { scale, x, y } = projectCamera(view, svg.clientWidth, svg.clientHeight);
+    cameraScale?.(scale, x, y);
+  }
+  function requestDraw() {
+    if (frame) return;
+    frame = requestAnimationFrame(() => { frame = 0; draw(); });
+  }
+  function stopFlight() {
+    flight?.cancel();
+    flight = null;
+  }
+  const world = (x, y) => new DOMPoint(x, y).matrixTransform(svg.getScreenCTM().inverse());
+
+  function zoom(factor, point = { x: view.x + view.width / 2, y: view.y + view.height / 2 }) {
+    stopFlight();
+    const width = Math.max(bounds.width / 10, Math.min(bounds.width * 3, view.width * factor));
+    const scale = width / view.width;
+    view = {
+      x: point.x + (view.x - point.x) * scale,
+      y: point.y + (view.y - point.y) * scale,
+      width, height: view.height * scale,
+    };
+    requestDraw();
+  }
+
+  function wheel(event, frameBounds, delta, { navigate = true, aroundCenter = false } = {}) {
+    const factor = Math.exp(Math.max(-250, Math.min(250, delta)) * 0.002);
+    if (aroundCenter) {
+      zoom(factor);
+      return;
+    }
+    // Use the live camera, independently of the outgoing scene and its CSS transform.
+    const camera = projectCamera(view, frameBounds.width, frameBounds.height);
+    if (!(camera.scale > 0)) return;
+    const screen = { x: event.clientX, y: event.clientY };
+    const point = unproject(camera, { x: screen.x - frameBounds.left, y: screen.y - frameBounds.top });
+    zoom(factor, point);
+    if (!navigate || !wheelNavigation) return;
+    const node = delta < 0 ? [...nodes.values()].find(candidate =>
+      point.x >= candidate.x && point.x <= candidate.x + candidate.width &&
+      point.y >= candidate.y && point.y <= candidate.y + candidate.height) : undefined;
+    const scale = Math.min(svg.clientWidth / view.width, svg.clientHeight / view.height);
+    wheelNavigation({
+      delta,
+      time: event.timeStamp,
+      screen,
+      node,
+      viewportShare: node ? node.width * scale / svg.clientWidth : 0,
+      zoomedOut: view.width / bounds.width,
+    });
+  }
+  svg.addEventListener('pointerdown', event => {
+    stopFlight();
+    if (event.button !== 0 || !event.isPrimary) return;
+    const card = event.target.closest('[data-node-id]');
+    if (!card && event.target.closest('[role="button"]')) return;
+    const node = card ? nodes.get(card.dataset.nodeId) : null;
+    suppressClick = false;
+    drag = { x: event.clientX, y: event.clientY, card, node, pointer: event.pointerId, moved: false,
+      origin: node && { x: node.x, y: node.y } };
+    if (!card) svg.setPointerCapture(event.pointerId);
+  });
+  svg.addEventListener('pointermove', event => {
+    if (!drag || drag.pointer !== event.pointerId) return;
+    if (!drag.moved && Math.hypot(event.clientX - drag.x, event.clientY - drag.y) < 5) return;
+    drag.moved = true;
+    if (drag.card && !svg.hasPointerCapture(event.pointerId)) svg.setPointerCapture(event.pointerId);
+    const before = world(drag.x, drag.y);
+    const after = world(event.clientX, event.clientY);
+    if (drag.node) {
+      drag.position = {
+        x: snapToGrid(drag.origin.x + after.x - before.x),
+        y: snapToGrid(drag.origin.y + after.y - before.y),
+      };
+      if (!dragFrame) dragFrame = requestAnimationFrame(() => {
+        dragFrame = 0;
+        if (drag?.position) previewMove(drag.node.id, drag.position);
+      });
+      return;
+    }
+    view.x += before.x - after.x;
+    view.y += before.y - after.y;
+    drag.x = event.clientX;
+    drag.y = event.clientY;
+    requestDraw();
+  });
+  svg.addEventListener('pointerup', event => {
+    if (drag?.pointer !== event.pointerId) return;
+    const finished = drag;
+    drag = null;
+    cancelAnimationFrame(dragFrame);
+    dragFrame = 0;
+    if (!finished.position) return;
+    suppressClick = true;
+    const { node, position } = finished;
+    const overlap = [...nodes.values()].some(other => (
+      other.id !== node.id && position.x < other.x + other.width && position.x + node.width > other.x &&
+      position.y < other.y + other.height && position.y + node.height > other.y
+    ));
+    if (!overlap) move(node.id, position, view);
+    else previewMove(node.id, finished.origin);
+  });
+  function cancelDrag() {
+    if (drag?.node && drag.position) previewMove(drag.node.id, drag.origin);
+    cancelAnimationFrame(dragFrame);
+    dragFrame = 0;
+    drag = null;
+  }
+  svg.addEventListener('pointercancel', cancelDrag);
+  svg.addEventListener('lostpointercapture', cancelDrag);
+  svg.addEventListener('click', event => {
+    if (!suppressClick || event.detail === 0) return;
+    suppressClick = false;
+    event.stopImmediatePropagation();
+  }, true);
+  draw();
+  return {
+    zoom, wheel,
+    paint() { cancelAnimationFrame(frame); frame = 0; draw(); },
+    pin(point, screen) {
+      const rect = svg.getBoundingClientRect();
+      const camera = projectCamera(view, svg.clientWidth, svg.clientHeight);
+      view = pinPoint(view, camera, point, { x: screen.x - rect.left, y: screen.y - rect.top });
+      draw();
+    },
+    contentBounds: bounds,
+    snapshot() { return { ...view }; },
+    center(id) {
+      const node = nodes.get(id);
+      if (!node) return;
+      view.x = node.x + (node.width - view.width) / 2;
+      view.y = node.y + (node.height - view.height) / 2;
+      draw();
+    },
+    focus(id) {
+      const node = nodes.get(id);
+      if (!node) return;
+      const width = Math.min(view.width, node.width * 3.4);
+      const height = width * view.height / view.width;
+      view = { x: node.x + (node.width - width) / 2, y: node.y + (node.height - height) / 2, width, height };
+      draw();
+    },
+    fit(animate) {
+      stopFlight();
+      const old = svg.getScreenCTM();
+      view = { ...bounds };
+      draw();
+      const next = svg.getScreenCTM();
+      if (!animate || reducedMotion() || !old || !next) return;
+      const scale = old.a / next.a;
+      flight = svg.animate([
+        { transformOrigin: '0 0', transform: `translate(${old.e - next.e * scale}px, ${old.f - next.f * scale}px) scale(${scale})` },
+        { transformOrigin: '0 0', transform: 'none' },
+      ], { duration: 180, easing: 'cubic-bezier(0.77, 0, 0.175, 1)' });
+    },
+    destroy() { stopFlight(); cancelAnimationFrame(frame); cancelDrag(); },
+  };
+}
+return { enableViewport };
+})();
+
+modules["src/views/diagram/scenes.mjs"] = (() => {
+const { drawGraph } = modules["src/views/diagram/view.mjs"];
+const { enableViewport } = modules["src/views/diagram/viewport.mjs"];
+const { layout } = modules["src/graph/layout.mjs"];
+const { relationIndex } = modules["src/graph/relations.mjs"];
+
+function createDiagramScenes(getModel) {
+  const arrangements = new Map();
+  const layouts = new Map();
+  const previews = new Map();
+
+  function nodePreview(location) {
+    const key = JSON.stringify(location);
+    const graph = getModel().view(location);
+    if (graph.nodes.length === 0) return null;
+    if (!previews.has(key)) {
+      previews.set(key, drawGraph(graph, {
+        positions: arrangements.get(key),
+        diagram: sceneLayout(location, graph, location.group === undefined),
+      }).svg);
+    }
+    return { svg: previews.get(key).cloneNode(true) };
+  }
+
+  function sceneLayout(location, graph, miniatureCards) {
+    const key = JSON.stringify(location);
+    if (!layouts.has(key)) {
+      const sizes = miniatureCards ? { width: 230, height: 138 } : {};
+      layouts.set(key, layout(graph, { ...sizes, positions: arrangements.get(key) }));
+    }
+    return layouts.get(key);
+  }
+
+  function mount(panel, state, { pins, openNode, inspectNode, inspectEdge, cameraScale, wheelNavigate }) {
+    const { location } = state;
+    const graph = getModel().view(location);
+    const key = JSON.stringify(location);
+    if (!arrangements.has(key)) arrangements.set(key, new Map());
+    const positions = arrangements.get(key);
+    const hasPreviews = location.group === undefined;
+    const drawing = drawGraph(graph, {
+      pins,
+      diagram: sceneLayout(location, graph, hasPreviews),
+      open: openNode,
+      inspectNode,
+      inspectEdge,
+      preview: hasPreviews ? node => nodePreview(node.next) : undefined,
+    });
+    const { svg, bounds, nodes } = drawing;
+    panel.append(svg);
+    const camera = enableViewport(svg, bounds, {
+      initialView: state.view, nodes,
+      cameraScale,
+      wheelNavigation: wheelNavigate,
+      previewMove: drawing.move,
+      move(id, position, view) {
+        positions.set(id, position);
+        layouts.delete(key);
+        previews.delete(key);
+        state.view = view;
+        drawing.move(id, position, true);
+      },
+    });
+    return { svg, viewport: camera, graph, scene: {
+      index: relationIndex(graph.edges), nodes: new Map(graph.nodes.map(node => [node.id, node])),
+    } };
+  }
+
+  function clear() {
+    arrangements.clear();
+    layouts.clear();
+    previews.clear();
+  }
+
+  return { mount, clear };
+}
+return { createDiagramScenes };
+})();
+
+modules["src/ui/search.mjs"] = (() => {
+function enableSearch(search, choose) {
+  const bar = document.querySelector('#search-bar');
+  const input = document.querySelector('#search-query');
+  const results = document.querySelector('#search-results');
+  let matches = [];
+  let active = 0;
+  function expanded(value) {
+    results.hidden = !value;
+    input.setAttribute('aria-expanded', String(value));
+  }
+  function update() {
+    matches = search(input.value);
+    active = 0;
+    results.replaceChildren();
+    for (const entry of matches) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.textContent = entry.node.label;
+      const location = document.createElement('small');
+      location.textContent = [entry.node.library, entry.node.group, entry.node.type === 'module' && entry.node.id].filter(Boolean).join(' / ');
+      button.append(location);
+      button.addEventListener('click', () => commit(entry));
+      results.append(button);
+    }
+    if (!matches.length) results.textContent = 'No results';
+    expanded(true);
+    markActive();
+  }
+
+  function markActive() {
+    [...results.children].forEach((button, index) => button.classList.toggle('active', index === active));
+    results.children[active]?.scrollIntoView({ block: 'nearest' });
+  }
+
+  function commit(entry) {
+    if (!entry) return;
+    expanded(false);
+    input.blur();
+    choose(entry);
+  }
+
+  input.addEventListener('input', update);
+  input.addEventListener('focus', update);
+  input.addEventListener('click', () => { if (results.hidden) update(); });
+  bar.addEventListener('focusout', event => {
+    if (!bar.contains(event.relatedTarget)) expanded(false);
+  });
+  document.addEventListener('pointerdown', event => {
+    if (!bar.contains(event.target)) expanded(false);
+  }, true);
+  input.addEventListener('keydown', event => {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      expanded(false);
+      input.blur();
+      return;
+    }
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      commit(matches[active]);
+    }
+    if (!['ArrowDown', 'ArrowUp'].includes(event.key)) return;
+    event.preventDefault();
+    active = Math.max(0, Math.min(matches.length - 1, active + (event.key === 'ArrowDown' ? 1 : -1)));
+    markActive();
+  });
+  return function open() {
+    if (document.activeElement === input && results.hidden) update();
+    input.focus();
+    input.select();
+  };
+}
+return { enableSearch };
+})();
+
+modules["src/views/atlas/layout.mjs"] = (() => {
+// Shared by the worker and the synchronous fallback. Coordinates never change
+// when a different level of detail is drawn.
+function arrangeAtlas(nodes, projects = []) {
+  const libraries = new Map(projects.map(project => [project.id, new Map()]));
+  const projectLabels = new Map(projects.map(project => [project.id, project.label]));
+  for (const node of nodes) {
+    if (!libraries.has(node.library)) libraries.set(node.library, new Map());
+    const groups = libraries.get(node.library);
+    if (!groups.has(node.group)) groups.set(node.group, []);
+    groups.get(node.group).push(node);
+  }
+  const result = { libraries: [], groups: [], modules: [], bounds: null };
+  let x = 0;
+  let y = 0;
+  let rowHeight = 0;
+  let right = 0;
+  const rowLength = Math.ceil(Math.sqrt(libraries.size));
+  for (const [name, groups] of libraries) {
+    if (result.libraries.length && result.libraries.length % rowLength === 0) {
+      x = 0;
+      y += rowHeight + 180;
+      rowHeight = 0;
+    }
+    const start = result.groups.length;
+    let width = 0;
+    let height = 82;
+    let groupRowHeight = 0;
+    let groupX = 32;
+    for (const [group, members] of groups) {
+      if (result.groups.length > start && (result.groups.length - start) % 3 === 0) {
+        groupX = 32;
+        height += groupRowHeight + 36;
+        groupRowHeight = 0;
+      }
+      const columns = Math.min(4, Math.ceil(Math.sqrt(members.length)));
+      const block = { id: JSON.stringify([name, group]), label: members[0].groupLabel ?? group, library: name, group, type: 'group',
+        x: x + groupX, y: y + height, width: columns * 194 + 24, height: Math.ceil(members.length / columns) * 53 + 47 };
+      result.groups.push(block);
+      members.forEach((member, i) => result.modules.push({
+        ...member, x: block.x + 12 + (i % columns) * 194, y: block.y + 35 + Math.floor(i / columns) * 53,
+        width: 180, height: 40,
+      }));
+      width = Math.max(width, groupX + block.width + 32);
+      groupX += block.width + 36;
+      groupRowHeight = Math.max(groupRowHeight, block.height);
+    }
+    height += groupRowHeight + 32;
+    width = Math.max(width, 220);
+    result.libraries.push({ id: name, label: projectLabels.get(name) ?? name, library: name, type: 'library', x, y, width, height });
+    right = Math.max(right, x + width);
+    x += width + 180;
+    rowHeight = Math.max(rowHeight, height);
+  }
+  result.bounds = { x: -70, y: -70, width: right + 140, height: y + rowHeight + 140 };
+  return result;
+}
+
+function prepareAtlas(nodes, projects) {
+  return new Promise(resolve => {
+    let worker;
+    let url;
+    const fallback = () => resolve(arrangeAtlas(nodes, projects));
+    try {
+      url = URL.createObjectURL(new Blob([
+        'onmessage = event => postMessage((' + arrangeAtlas.toString() + ')(...event.data))',
+      ], { type: 'text/javascript' }));
+      worker = new Worker(url);
+      const cleanup = () => {
+        worker.terminate();
+        URL.revokeObjectURL(url);
+      };
+      worker.onmessage = event => { cleanup(); resolve(event.data); };
+      worker.onerror = () => { cleanup(); fallback(); };
+      worker.postMessage([nodes, projects]);
+    } catch {
+      worker?.terminate();
+      if (url) URL.revokeObjectURL(url);
+      fallback();
+    }
+  });
+}
+return { arrangeAtlas, prepareAtlas };
+})();
+
+modules["src/views/atlas/pointer.mjs"] = (() => {
+function bindAtlasPointer(input, actions) {
+  let drag;
+  let canClick = false;
+  const controller = new AbortController();
+  const listen = (type, listener) => input.addEventListener(type, listener, { signal: controller.signal });
+
+  function position(event) {
+    const { x, y, scale } = actions.getView();
+    return { x: x + event.offsetX / scale, y: y + event.offsetY / scale, width: 0, height: 0 };
+  }
+
+  listen('pointerdown', event => {
+    if (event.button !== 0 || !event.isPrimary) return;
+    canClick = false;
+    actions.onStart();
+    drag = { x: event.clientX, y: event.clientY, pointer: event.pointerId, start: { ...actions.getView() }, moved: false };
+    input.setPointerCapture(event.pointerId);
+  });
+  listen('pointermove', event => {
+    if (!drag && event.pointerType === 'mouse' && actions.canHover()) {
+      const point = position(event);
+      const node = actions.hitNode(point);
+      const wire = node ? null : actions.hitWire(point);
+      actions.hover(node, wire, event);
+    }
+    if (drag?.pointer !== event.pointerId) return;
+    const dx = event.clientX - drag.x;
+    const dy = event.clientY - drag.y;
+    drag.moved ||= Math.hypot(dx, dy) >= 5;
+    if (!drag.moved) return;
+    const { scale } = actions.getView();
+    actions.pan(drag.start.x - dx / scale, drag.start.y - dy / scale);
+  });
+  listen('pointerleave', () => {
+    actions.leave();
+  });
+  listen('pointerup', event => {
+    if (drag?.pointer !== event.pointerId) return;
+    canClick = !drag.moved;
+    drag = null;
+  });
+  listen('click', event => {
+    if (!canClick) return;
+    canClick = false;
+    const point = position(event);
+    const hit = actions.hitNode(point);
+    if (hit) actions.select(hit, event);
+    else {
+      const wire = actions.hitWire(point);
+      if (wire) actions.inspect(wire, wire.fromNode, wire.toNode);
+    }
+  });
+  listen('contextmenu', event => {
+    if (!actions.pin) return;
+    const point = position(event);
+    const node = actions.hitNode(point);
+    if (!node) return;
+    event.preventDefault();
+    actions.pin(node);
+  });
+  listen('lostpointercapture', () => { drag = null; });
+
+  return { destroy() { controller.abort(); } };
+}
+return { bindAtlasPointer };
+})();
+
+modules["src/views/atlas/geometry.mjs"] = (() => {
+function clipLine(from, to, area) {
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+  let first = 0;
+  let last = 1;
+  const sides = [
+    [-dx, from.x - area.x], [dx, area.x + area.width - from.x],
+    [-dy, from.y - area.y], [dy, area.y + area.height - from.y],
+  ];
+  for (const [direction, gap] of sides) {
+    if (direction === 0) {
+      if (gap < 0) return null;
+      continue;
+    }
+    const t = gap / direction;
+    if (direction < 0) first = Math.max(first, t);
+    else last = Math.min(last, t);
+    if (first > last) return null;
+  }
+  return [from.x + first * dx, from.y + first * dy, from.x + last * dx, from.y + last * dy];
+}
+
+function visibleSegments(wires, visible) {
+  const result = [];
+  for (const wire of wires) {
+    const segments = [];
+    for (let i = 1; i < wire.points.length; i++) {
+      const points = clipLine(wire.points[i - 1], wire.points[i], visible);
+      if (points) segments.push(points);
+    }
+    if (segments.length) result.push({ wire, segments });
+  }
+  return result;
+}
+
+function wireAt(point, displayedWires, scale) {
+  const radius = 7 / scale;
+  let best;
+  let distance = radius;
+  for (const { wire, segments } of displayedWires) {
+    for (const [x, y, endX, endY] of segments) {
+      const dx = endX - x;
+      const dy = endY - y;
+      const squared = dx * dx + dy * dy;
+      if (!squared) continue;
+      const t = Math.max(0, Math.min(1, ((point.x - x) * dx + (point.y - y) * dy) / squared));
+      const gap = Math.hypot(point.x - x - dx * t, point.y - y - dy * t);
+      if (gap >= distance) continue;
+      distance = gap;
+      best = wire;
+    }
+  }
+  return best;
+}
+return { visibleSegments, wireAt };
+})();
+
+modules["src/views/atlas/painter.mjs"] = (() => {
+const colors = { library: '#638caf', group: '#73a99d', module: '#969cc7' };
+
+function createAtlasPainter(context) {
+  const labels = new Map();
+
+  function drawWires(wires, scale, highlight, dim = false, pinned) {
+    if (highlight) {
+      context.strokeStyle = '#0b111beb';
+      context.lineWidth = 11 / scale;
+      context.lineJoin = context.lineCap = 'round';
+      context.beginPath();
+      for (const { segments } of wires) traceSegments(segments);
+      context.stroke();
+    }
+    context.strokeStyle = highlight ? '#c0edff' : dim ? '#38516a65' : '#6586a5a0';
+    context.lineJoin = 'round';
+    context.lineCap = 'round';
+    for (const { wire, segments } of wires) {
+      const pinColor = pinned?.get(wire.source) ?? pinned?.get(wire.target);
+      if (highlight) context.strokeStyle = pinColor ?? '#c0edff';
+      const thickness = wire.pairs > 1 ? Math.min(4.5, 1.5 + Math.log2(wire.pairs) * .48) : 1.4;
+      context.lineWidth = (highlight ? Math.max(2.4, thickness) : thickness) / scale;
+      context.beginPath();
+      traceSegments(segments);
+      context.stroke();
+      if (!highlight) continue;
+      const from = wire.points[0];
+      const to = wire.points.at(-1);
+      context.beginPath();
+      context.arc(from.x, from.y, 3.3 / scale, 0, Math.PI * 2);
+      context.stroke();
+      context.beginPath();
+      context.arc(to.x, to.y, 3.3 / scale, 0, Math.PI * 2);
+      context.fillStyle = pinColor ?? '#c0edff';
+      context.fill();
+    }
+  }
+
+  function traceSegments(segments) {
+    let endX, endY;
+    for (const [x, y, nextX, nextY] of segments) {
+      if (endX !== x || endY !== y) context.moveTo(x, y);
+      context.lineTo(nextX, nextY);
+      endX = nextX;
+      endY = nextY;
+    }
+  }
+
+  function drawNode(node, scale, { chosen, hovered, activeEndpoints, level, emphasis, pins }) {
+    const active = chosen === node.id || hovered === node.id || activeEndpoints.has(node.id) ||
+      (level === 2 && emphasis?.nodes.has(node.id));
+    const hasHighlight = hovered !== undefined || activeEndpoints.size > 0 || (level === 2 && emphasis);
+    context.globalAlpha = hasHighlight && !active ? 0.34 : 1;
+    context.fillStyle = active ? '#26465d' : level === 2 ? '#22263c' : '#192b39';
+    context.fillRect(node.x, node.y, node.width, node.height);
+    context.strokeStyle = pins?.color(node) ?? (active ? '#c3edff' : colors[node.type]);
+    context.lineWidth = (active ? 2 : 1) / scale;
+    context.strokeRect(node.x, node.y, node.width, node.height);
+    const screenWidth = node.width * scale;
+    const screenHeight = node.height * scale;
+    if (screenHeight >= 15 && (screenWidth >= 47 || active)) {
+      const fontSize = level === 0 ? 15 : level === 1 ? 12 : 11;
+      drawLabel(node.label, node.x + 8 / scale, node.y + node.height / 2,
+        node.width - 16 / scale, fontSize, scale, '#e7f0f8');
+    }
+    context.globalAlpha = 1;
+  }
+
+  function drawLabel(text, x, y, width, fontSize, scale, color) {
+    const pixels = Math.floor(width * scale / 4) * 4;
+    if (pixels < 16) return;
+    const key = JSON.stringify([text, fontSize, pixels]);
+    context.save();
+    context.translate(x, y);
+    context.scale(1 / scale, 1 / scale);
+    context.font = '600 ' + fontSize + 'px system-ui';
+    context.fillStyle = color;
+    context.textBaseline = 'middle';
+    let label = labels.get(key);
+    if (label === undefined) {
+      label = text;
+      if (context.measureText(label).width > pixels) {
+        do { label = label.slice(0, -1); }
+        while (label.length && context.measureText(label + '…').width > pixels);
+        label += '…';
+      }
+      if (labels.size >= 2048) labels.clear();
+      labels.set(key, label);
+    }
+    context.fillText(label, 0, 0);
+    context.restore();
+  }
+
+  return { drawWires, drawNode, drawLabel };
+}
+return { createAtlasPainter };
+})();
+
+modules["src/views/atlas/minimap.mjs"] = (() => {
+function createMinimap(map, bounds, libraries) {
+  const mini = map.getContext('2d');
+
+  function mapScale() {
+    return Math.min(map.width / bounds.width, map.height / bounds.height);
+  }
+
+  function drawMap(area) {
+    const scale = mapScale();
+    mini.fillStyle = '#141e2a';
+    mini.fillRect(0, 0, map.width, map.height);
+    mini.fillStyle = '#466281';
+    for (const node of libraries) mini.fillRect((node.x - bounds.x) * scale, (node.y - bounds.y) * scale, node.width * scale, node.height * scale);
+    mini.strokeStyle = '#d6f1ff';
+    mini.strokeRect((area.x - bounds.x) * scale, (area.y - bounds.y) * scale, area.width * scale, area.height * scale);
+  }
+
+  function getCenter(event) {
+    const rect = map.getBoundingClientRect();
+    return {
+      x: bounds.x + (event.clientX - rect.left) * map.width / rect.width / mapScale(),
+      y: bounds.y + (event.clientY - rect.top) * map.height / rect.height / mapScale(),
+    };
+  }
+
+  return { draw: drawMap, getCenter };
+}
+return { createMinimap };
+})();
+
+modules["src/graph/spatial.mjs"] = (() => {
+function intersects(a, b) {
+  return a.x <= b.x + b.width && a.x + a.width >= b.x &&
+    a.y <= b.y + b.height && a.y + a.height >= b.y;
+}
+
+// Bounding boxes are stored once. Even very long wires occupy just one leaf.
+function spatialIndex(items) {
+  function build(rows, depth = 0) {
+    if (!rows.length) return null;
+    let left = Infinity;
+    let top = Infinity;
+    let right = -Infinity;
+    let bottom = -Infinity;
+    for (const { box } of rows) {
+      left = Math.min(left, box.x);
+      top = Math.min(top, box.y);
+      right = Math.max(right, box.x + box.width);
+      bottom = Math.max(bottom, box.y + box.height);
+    }
+    const box = { x: left, y: top, width: right - left, height: bottom - top };
+    if (rows.length <= 12) return { box, rows };
+    const axis = depth % 2 ? 'y' : 'x';
+    rows.sort((a, b) => a.box[axis] - b.box[axis]);
+    const middle = Math.floor(rows.length / 2);
+    return { box, left: build(rows.slice(0, middle), depth + 1), right: build(rows.slice(middle), depth + 1) };
+  }
+  const root = build([...items]);
+  return area => {
+    const found = [];
+    function visit(branch) {
+      if (!branch || !intersects(branch.box, area)) return;
+      if (branch.rows) {
+        for (const item of branch.rows) if (intersects(item.box, area)) found.push(item);
+      } else {
+        visit(branch.left);
+        visit(branch.right);
+      }
+    }
+    visit(root);
+    return found;
+  };
+}
+return { intersects, spatialIndex };
+})();
+
+modules["src/views/atlas/routes.mjs"] = (() => {
+const { spatialIndex } = modules["src/graph/spatial.mjs"];
+
+const midpoint = box => ({ x: box.x + box.width / 2, y: box.y + box.height / 2 });
+
+function segmentHits(a, b, box) {
+  return Math.min(a.x, b.x) < box.x + box.width && Math.max(a.x, b.x) > box.x &&
+    Math.min(a.y, b.y) < box.y + box.height && Math.max(a.y, b.y) > box.y;
+}
+
+function libraryRoute(source, target, from, to, boxes) {
+  const xs = new Set([Math.round((from.x + to.x) / 2)]);
+  const ys = new Set([Math.round((from.y + to.y) / 2)]);
+  const nearby = boxes.length <= 20 ? boxes
+    : boxes.filter(box => box === source || box === target || segmentHits(from, to, box));
+  for (const box of nearby) {
+    xs.add(box.x - 44); xs.add(box.x + box.width + 44);
+    ys.add(box.y - 44); ys.add(box.y + box.height + 44);
+  }
+  let best;
+  let lowest = Infinity;
+  for (const x of xs) {
+    if (x >= target.x && x <= target.x + target.width) continue;
+    for (const y of ys) {
+      if (y >= source.y && y <= source.y + source.height) continue;
+      const start = { x: from.x, y: y < source.y ? source.y : source.y + source.height };
+      const end = { x: x < target.x ? target.x : target.x + target.width, y: to.y };
+      const route = [start, { x: from.x, y }, { x, y }, { x, y: to.y }, end];
+      let cost = 0;
+      for (let i = 1; i < route.length; i++) {
+        const a = route[i - 1], b = route[i];
+        cost += Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
+        for (const box of boxes) {
+          if (segmentHits(a, b, box)) cost += 100000;
+        }
+      }
+      if (cost >= lowest) continue;
+      best = route;
+      lowest = cost;
+    }
+  }
+  return best;
+}
+
+function routeCrossesBoxes(points, boxes) {
+  return points.slice(1).some((point, index) => boxes.some(box => segmentHits(points[index], point, box)));
+}
+
+function routeBundle(source, target, from, to, boxes) {
+  const direct = libraryRoute(source, target, from, to, boxes);
+  if (!routeCrossesBoxes(direct, boxes)) return direct;
+  const reverse = libraryRoute(target, source, to, from, boxes).reverse();
+  return routeCrossesBoxes(reverse, boxes) ? direct : reverse;
+}
+
+function boxRoute(source, target, from, to) {
+  const sourceRight = source.x + source.width;
+  const targetRight = target.x + target.width;
+  const forward = sourceRight <= target.x;
+  const backward = targetRight <= source.x;
+  if (forward || backward) {
+    const a = { x: forward ? sourceRight : source.x, y: from.y };
+    const b = { x: forward ? target.x : targetRight, y: to.y };
+    const x = (a.x + b.x) / 2;
+    return [a, { x, y: a.y }, { x, y: b.y }, b];
+  }
+  if (source.y + source.height <= target.y || target.y + target.height <= source.y) {
+    const down = from.y < to.y;
+    const a = { x: from.x, y: down ? source.y + source.height : source.y };
+    const b = { x: to.x, y: down ? target.y : target.y + target.height };
+    const y = (a.y + b.y) / 2;
+    return [a, { x: a.x, y }, { x: b.x, y }, b];
+  }
+  return [from, to];
+}
+
+function wireLayer(nodes, records, resolve, bundle = false) {
+  const byId = new Map(nodes.map(node => [node.id, node]));
+  const wires = new Map();
+  const incident = new Map(nodes.map(node => [node.id, []]));
+  for (const record of records) {
+    const [source, target] = resolve(record);
+    if (source === target || !byId.has(source) || !byId.has(target)) continue;
+    const id = JSON.stringify([source, target]);
+    if (!wires.has(id)) {
+      const wire = { id, source, target, records: [], pairs: 0 };
+      wires.set(id, wire);
+      incident.get(source).push(wire);
+      incident.get(target).push(wire);
+    }
+    const wire = wires.get(id);
+    wire.pairs++;
+    for (const evidence of record.records) wire.records.push(evidence);
+  }
+  for (const wire of wires.values()) {
+    const source = byId.get(wire.source), target = byId.get(wire.target);
+    wire.fromNode = source;
+    wire.toNode = target;
+    const from = midpoint(source), to = midpoint(target);
+    if (bundle) {
+      const outgoing = incident.get(source.id);
+      const incoming = incident.get(target.id);
+      from.x = source.x + source.width * (.18 + .64 * (outgoing.indexOf(wire) + 1) / (outgoing.length + 1));
+      to.y = target.y + target.height * (.18 + .64 * (incoming.indexOf(wire) + 1) / (incoming.length + 1));
+    }
+    wire.points = bundle ? routeBundle(source, target, from, to, nodes)
+      : boxRoute(source, target, from, to);
+    const xs = wire.points.map(point => point.x);
+    const ys = wire.points.map(point => point.y);
+    wire.box = { x: Math.min(...xs), y: Math.min(...ys), width: Math.max(...xs) - Math.min(...xs),
+      height: Math.max(...ys) - Math.min(...ys) };
+  }
+  return { byId, incident, edges: wires, nodes: spatialIndex(nodes.map(node => ({ node, box: node }))),
+    wires: spatialIndex(wires.values()) };
+}
+return { wireLayer };
+})();
+
+modules["src/views/atlas/view.mjs"] = (() => {
+const { bindAtlasPointer } = modules["src/views/atlas/pointer.mjs"];
+const { visibleSegments, wireAt } = modules["src/views/atlas/geometry.mjs"];
+const { createAtlasPainter } = modules["src/views/atlas/painter.mjs"];
+const { createMinimap } = modules["src/views/atlas/minimap.mjs"];
+const { wireLayer } = modules["src/views/atlas/routes.mjs"];
+const { cameraProgress } = modules["src/navigation/motion.mjs"];
+
+const center = node => ({ x: node.x + node.width / 2, y: node.y + node.height / 2 });
+
+function mountAtlas(host, arrangement, graph, links, callbacks) {
+  const { bounds, libraries, groups, modules } = arrangement;
+  const byId = new Map(modules.map(node => [node.id, node]));
+  const libraryOf = id => byId.get(id).library;
+  const groupOf = id => JSON.stringify([libraryOf(id), byId.get(id).group]);
+  const layers = [
+    wireLayer(libraries, links, edge => [edge.source, edge.target], true),
+    wireLayer(groups, graph.edges, edge => [groupOf(edge.source), groupOf(edge.target)]),
+    wireLayer(modules, graph.edges, edge => [edge.source, edge.target]),
+  ];
+  const bundles = wireLayer(libraries, graph.edges, edge => [libraryOf(edge.source), libraryOf(edge.target)], true);
+  const canvas = document.createElement('canvas');
+  canvas.className = 'atlas-surface';
+  canvas.setAttribute('aria-hidden', 'true');
+  const input = document.createElement('div');
+  input.className = 'atlas-input';
+  input.setAttribute('role', 'region');
+  input.setAttribute('aria-label', 'Graph overview. Use search to find any module.');
+  const tooltip = document.createElement('div');
+  tooltip.className = 'atlas-tooltip';
+  tooltip.hidden = true;
+  host.style.overflow = 'hidden';
+  const context = canvas.getContext('2d');
+  host.replaceChildren(canvas, input, tooltip);
+  const map = document.querySelector('#minimap');
+  const minimap = createMinimap(map, bounds, libraries);
+  map.hidden = false;
+  let size = { width: 1, height: 1, dpr: 1 };
+  let view = { x: bounds.x, y: bounds.y, scale: 1 };
+  let frame = 0;
+  let level = 0;
+  let emphasis;
+  let chosen;
+  let flight;
+  let fixedLevel = null;
+  let showLines = false;
+  let bitmap;
+  let reportedLevel;
+  let settled = true;
+  let settleTimer;
+  let border = 0;
+  let displayedWires = [];
+  let hovered;
+  let hoveredWire;
+  let activeEndpoints = new Set();
+  const pins = callbacks.pins;
+  const { drawWires, drawNode, drawLabel } = createAtlasPainter(context);
+  const large = graph.edges.length > 8000;
+  const maxWires = large ? 220 : 420;
+
+  function request(repaint = false) {
+    if (repaint) bitmap = null;
+    if (!frame) frame = requestAnimationFrame(draw);
+  }
+
+  function changedCamera() {
+    tooltip.hidden = true;
+    if (hovered || hoveredWire) {
+      hovered = hoveredWire = null;
+      bitmap = null;
+    }
+    settled = false;
+    canvas.style.willChange = 'transform';
+    clearTimeout(settleTimer);
+    settleTimer = setTimeout(() => {
+      settled = true;
+      canvas.style.willChange = '';
+      request(true);
+    }, 120);
+    request();
+  }
+
+  function fitted() {
+    const scale = Math.min(size.width / bounds.width, size.height / bounds.height);
+    return { scale, x: bounds.x - (size.width / scale - bounds.width) / 2,
+      y: bounds.y - (size.height / scale - bounds.height) / 2 };
+  }
+
+  function resize() {
+    const rect = input.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
+    const dpr = window.devicePixelRatio || 1;
+    if (rect.width === size.width && rect.height === size.height && dpr === size.dpr) return;
+    border = Math.round(Math.min(rect.width, rect.height) * .14);
+    const width = rect.width + border * 2;
+    const height = rect.height + border * 2;
+    size = { width: rect.width, height: rect.height, dpr };
+    canvas.width = Math.max(1, Math.round(width * dpr));
+    canvas.height = Math.max(1, Math.round(height * dpr));
+    Object.assign(canvas.style, { width: width + 'px', height: height + 'px', left: -border + 'px', top: -border + 'px' });
+    request(true);
+  }
+
+  function snapshot() {
+    return { x: view.x, y: view.y, width: size.width / view.scale, height: size.height / view.scale };
+  }
+
+  function fit(animate = false) {
+    const next = fitted();
+    flight = animate && !matchMedia('(prefers-reduced-motion: reduce)').matches
+      ? { from: { ...view }, to: next, start: performance.now() } : null;
+    if (!flight) view = next;
+    request(!flight);
+  }
+
+  function zoom(factor, point = { x: size.width / 2, y: size.height / 2 }) {
+    resize();
+    flight = null;
+    const old = view.scale;
+    view.scale = Math.max(fitted().scale / 3, Math.min(3, old / factor));
+    view.x += point.x * (1 / old - 1 / view.scale);
+    view.y += point.y * (1 / old - 1 / view.scale);
+    changedCamera();
+  }
+
+  function focus(id) {
+    const node = byId.get(id) ?? layers[0].byId.get(id);
+    if (!node) return;
+    const point = center(node);
+    flight = null;
+    if (byId.has(id) && fixedLevel !== null && fixedLevel !== 2) {
+      fixedLevel = 2;
+      callbacks.mode?.(2);
+    }
+    const scale = byId.has(id) ? Math.max(view.scale, 0.65) : Math.max(view.scale, 0.23);
+    view = { scale, x: point.x - size.width / (2 * scale), y: point.y - size.height / (2 * scale) };
+    request(true);
+  }
+
+  function draw(time) {
+    frame = 0;
+    if (flight) {
+      const raw = Math.min(1, (time - flight.start) / 180);
+      const t = cameraProgress(raw);
+      for (const key of ['x', 'y', 'scale']) view[key] = flight.from[key] + (flight.to[key] - flight.from[key]) * t;
+      if (raw >= 1) {
+        flight = null;
+        bitmap = null;
+      }
+      else request();
+    }
+    const { scale } = view;
+    callbacks.cameraScale?.(scale, -view.x * scale, -view.y * scale);
+    // Switch only once the next level has enough screen space. A small
+    // hysteresis keeps the scene stable at the boundary during wheel zoom.
+    const groupWidth = 218 * scale;
+    const moduleWidth = 180 * scale;
+    const nextLevel = fixedLevel ?? (moduleWidth >= (level === 2 ? 78 : 90) ? 2
+      : groupWidth >= (level >= 1 ? 31 : 38) ? 1 : 0);
+    if (nextLevel !== reportedLevel) {
+      callbacks.level(['Libraries', 'Module groups', 'C++ modules'][nextLevel]);
+      reportedLevel = nextLevel;
+    }
+    const area = snapshot();
+    if (bitmap?.level === nextLevel && bitmap.scale === scale && area.x >= bitmap.area.x && area.y >= bitmap.area.y &&
+        area.x + area.width <= bitmap.area.x + bitmap.area.width &&
+        area.y + area.height <= bitmap.area.y + bitmap.area.height) {
+      const x = (bitmap.area.x - area.x) * scale + border;
+      const y = (bitmap.area.y - area.y) * scale + border;
+      const snap = value => Math.round(value * size.dpr) / size.dpr;
+      canvas.style.transform = `translate3d(${snap(x)}px, ${snap(y)}px, 0)`;
+      minimap.draw(area);
+      return;
+    }
+    level = nextLevel;
+    const current = layers[level];
+    const margin = border / scale;
+    const visible = { x: area.x - margin, y: area.y - margin, width: area.width + 2 * margin, height: area.height + 2 * margin };
+    bitmap = { area: visible, scale, level };
+    canvas.style.transform = '';
+    const nodes = current.nodes(visible);
+    const base = level === 0 ? current : bundles;
+    const background = base.wires(visible);
+    const localScale = level === 1 ? .32 : .65;
+    if (level > 0 && showLines && scale >= localScale && settled && !flight) {
+      const local = current.wires(visible).filter(wire => wire.fromNode.library === wire.toNode.library);
+      // If the detail view is still dense, use the complete coarser view.
+      if (local.length <= maxWires) background.push(...local);
+    }
+    const selected = level === 2 && emphasis ? [...emphasis.edges].map(id => current.edges.get(id)).filter(Boolean) : [];
+    const preview = hoveredWire ? [hoveredWire] : hovered ? current.incident.get(hovered) ?? [] : [];
+    const pinned = pins?.entries(['library', 'group', 'module'][level]);
+    const pinnedWires = pinned ? [...pinned.keys()].flatMap(id => current.incident.get(id) ?? []) : [];
+    const active = new Set([...selected, ...preview, ...pinnedWires]);
+    activeEndpoints = new Set([...(pinned?.keys() ?? []), ...[...active].flatMap(wire => [wire.source, wire.target])]);
+    const backgroundWires = visibleSegments(background.filter(wire => !active.has(wire)), visible);
+    const highlighted = visibleSegments(active, visible);
+    context.setTransform(size.dpr, 0, 0, size.dpr, 0, 0);
+    context.clearRect(0, 0, size.width + border * 2, size.height + border * 2);
+    context.scale(scale, scale);
+    context.translate(-visible.x, -visible.y);
+
+    if (level > 0) {
+      context.fillStyle = '#131d29';
+      context.strokeStyle = '#294659';
+      context.lineWidth = 1 / scale;
+      for (const node of layers[0].nodes(visible).map(item => item.node)) {
+        context.fillRect(node.x, node.y, node.width, node.height);
+        context.strokeRect(node.x, node.y, node.width, node.height);
+        drawLabel(node.label, node.x + 24, node.y + 42, node.width - 48, 13, scale, '#adc7dd');
+        context.fillStyle = '#131d29';
+      }
+    }
+    if (level === 2 && scale >= .36) {
+      context.strokeStyle = '#25423f';
+      context.lineWidth = 1 / scale;
+      for (const { node } of layers[1].nodes(visible)) {
+        context.strokeRect(node.x, node.y, node.width, node.height);
+        drawLabel(node.label, node.x + 12, node.y + 16, node.width - 24, 11, scale, '#8fc5b9');
+      }
+    }
+    drawWires(backgroundWires, scale, false, activeEndpoints.size > 0 || hovered !== undefined);
+    displayedWires = [...backgroundWires, ...highlighted];
+    const nodeStyle = { chosen, hovered, activeEndpoints, level, emphasis, pins };
+    for (const { node } of nodes) drawNode(node, scale, nodeStyle);
+    if (highlighted.length) drawWires(highlighted, scale, true, false, pinned);
+    minimap.draw(area);
+  }
+
+  map.onclick = event => {
+    const point = minimap.getCenter(event);
+    view.x = point.x - size.width / (2 * view.scale);
+    view.y = point.y - size.height / (2 * view.scale);
+    flight = null;
+    changedCamera();
+  };
+  const pointer = bindAtlasPointer(input, {
+    getView: () => view,
+    canHover: () => !flight && settled,
+    onStart() { flight = null; tooltip.hidden = true; },
+    hitNode: point => layers[level].nodes(point)[0]?.node,
+    hitWire: point => wireAt(point, displayedWires, view.scale),
+    hover(node, wire, event) {
+      if (hovered !== node?.id || hoveredWire !== wire) {
+        hovered = node?.id;
+        hoveredWire = wire;
+        request(true);
+      }
+      tooltip.hidden = !node && !wire;
+      if (node || wire) {
+        tooltip.textContent = node ? (node.type === 'module' ? node.id : node.label)
+          : `${wire.fromNode.label} uses ${wire.toNode.label}${wire.pairs > 1 ? ' · ' + wire.pairs + ' module pairs' : ''}`;
+        tooltip.style.left = Math.max(8, Math.min(event.offsetX + 14, size.width - 310)) + 'px';
+        tooltip.style.top = Math.max(8, Math.min(event.offsetY + 16, size.height - 52)) + 'px';
+      }
+    },
+    leave() {
+      tooltip.hidden = true;
+      hovered = hoveredWire = null;
+      request(true);
+    },
+    pan(x, y) {
+      view.x = x;
+      view.y = y;
+      changedCamera();
+    },
+    select: callbacks.select,
+    inspect: callbacks.inspect,
+    pin: pins && (node => { pins.toggle(node); request(true); }),
+  });
+  const observer = new ResizeObserver(resize);
+  observer.observe(input);
+  window.addEventListener('resize', resize);
+  resize();
+  fit();
+  return {
+    paint() { cancelAnimationFrame(frame); draw(performance.now()); },
+    fit, zoom, focus, snapshot,
+    center(id) {
+      const node = layers[0].byId.get(id) ?? layers[1].byId.get(id);
+      if (!node) return;
+      const point = center(node);
+      view.x = point.x - size.width / (2 * view.scale);
+      view.y = point.y - size.height / (2 * view.scale);
+      request(true);
+    },
+    wheel(event, frameBounds, delta) {
+      zoom(Math.exp(Math.max(-250, Math.min(250, delta)) * 0.002),
+        { x: event.clientX - frameBounds.left, y: event.clientY - frameBounds.top });
+    },
+    setLevel(next) { fixedLevel = next; request(true); },
+    showLines(show) { showLines = show; request(true); },
+    restore(area) {
+      view = { x: area.x, y: area.y, scale: size.width / area.width };
+      changedCamera();
+    },
+    highlight(next, id) { emphasis = next; chosen = id; request(true); },
+    destroy() {
+      pointer.destroy();
+      observer.disconnect();
+      window.removeEventListener('resize', resize);
+      cancelAnimationFrame(frame);
+      clearTimeout(settleTimer);
+      host.style.overflow = '';
+      map.onclick = null;
+      map.hidden = true;
+    },
+  };
+}
+return { mountAtlas };
+})();
+
+modules["src/navigation/zoom-grid.mjs"] = (() => {
+const { cameraProgress } = modules["src/navigation/motion.mjs"];
+
+function gridTile({ scale, x, y }) {
+  const worldStep = 24 * 2 ** Math.ceil(Math.log2(24 / (24 * scale)));
+  const spacing = worldStep * scale;
+  const alpha = Math.max(0, Math.min(1, Math.log2(spacing / 24)));
+  // The top-left dot of each tile is a world-grid intersection. The other
+  // three dots fill in the next subdivision without moving existing points.
+  const phase = value => ((value % spacing) + spacing) % spacing - spacing / 4;
+  return { spacing, alpha, x: phase(x), y: phase(y) };
+}
+
+function createZoomGrid(element) {
+  const pattern = element.querySelector('pattern');
+  const fine = element.querySelector('.grid-fine');
+  const dots = [...element.querySelectorAll('circle')];
+  let camera = { scale: 1, x: 0, y: 0 };
+  let base = camera;
+  let reference;
+  let animation;
+
+  function paint(projection) {
+    const { spacing, alpha, x, y } = gridTile(projection);
+    pattern.setAttribute('width', spacing);
+    pattern.setAttribute('height', spacing);
+    pattern.setAttribute('x', x);
+    pattern.setAttribute('y', y);
+    fine.setAttribute('opacity', alpha);
+    for (const dot of dots) dot.setAttribute('r', 2.4 / spacing);
+  }
+
+  return {
+    snapshot() { return { camera, base, reference }; },
+    restore(snapshot) {
+      ({ camera, base, reference } = snapshot);
+      paint(camera);
+    },
+    rebase(factor = 1, anchor = { x: 0, y: 0 }) {
+      animation?.cancel();
+      reference = undefined;
+      base = {
+        scale: camera.scale * factor,
+        x: anchor.x + (camera.x - anchor.x) * factor,
+        y: anchor.y + (camera.y - anchor.y) * factor,
+      };
+      return camera;
+    },
+    update(scale, x, y) {
+      if (!Number.isFinite(scale) || scale <= 0) return;
+      reference ??= { scale, x, y };
+      const ratio = scale / reference.scale;
+      const next = {
+        scale: base.scale * ratio,
+        x: x + (base.x - reference.x) * ratio,
+        y: y + (base.y - reference.y) * ratio,
+      };
+      if (next.scale === camera.scale && next.x === camera.x && next.y === camera.y) return;
+      camera = next;
+      if (!animation) paint(camera);
+    },
+    animateFrom(previous, timing) {
+      if (previous === camera) return;
+      const start = performance.now();
+      let frame;
+      let resolve;
+      const finished = new Promise(done => { resolve = done; });
+      const handle = { finished, cancel: finish, seek };
+      function finish() {
+        if (animation !== handle) return;
+        cancelAnimationFrame(frame);
+        animation = undefined;
+        paint(camera);
+        resolve();
+      }
+      function seek(progress) {
+        const weight = progress === 0 || progress === 1 ? progress : cameraProgress(progress);
+        paint({
+          scale: previous.scale + (camera.scale - previous.scale) * weight,
+          x: previous.x + (camera.x - previous.x) * weight,
+          y: previous.y + (camera.y - previous.y) * weight,
+        });
+      }
+      function draw(time) {
+        const progress = Math.min(1, Math.max(0, (time - start) / timing.duration));
+        if (progress === 1) { finish(); return; }
+        seek(progress);
+        frame = requestAnimationFrame(draw);
+      }
+      animation = handle;
+      paint(previous);
+      if (!timing.manual) frame = requestAnimationFrame(draw);
+      return handle;
+    },
+  };
+}
+return { gridTile, createZoomGrid };
+})();
+
+modules["src/navigation/wheel-pace.mjs"] = (() => {
+function createWheelPace() {
+  let lastTime = -Infinity;
+  let lastDirection = 0;
+  let speed = 0;
+  return function sample(delta, time) {
+    const direction = Math.sign(delta);
+    const elapsed = time - lastTime;
+    const fresh = elapsed > 180 || direction !== lastDirection;
+    const instant = Math.abs(delta) / (fresh ? 48 : Math.max(12, elapsed));
+    speed = fresh ? instant : speed * .62 + instant * .38;
+    lastTime = time;
+    lastDirection = direction;
+    return Math.round(295 - 150 * Math.max(0, Math.min(1, (speed - .5) / 5.5)));
+  };
+}
+return { createWheelPace };
+})();
+
+modules["src/navigation/wheel-transitions.mjs"] = (() => {
+const { transitionGraph } = modules["src/navigation/motion.mjs"];
+const { relativePoint } = modules["src/navigation/camera.mjs"];
+
+function createWheelTransitions({ host, grid, mountGraph, getViewport, getPreviewRect, onArrival }) {
+  let transition;
+
+  function start(to, { reverse, screen, parentId, childId, duration }) {
+    const source = getViewport();
+    source.paint();
+    const outgoing = host.firstElementChild;
+    const previous = outgoing.querySelector('.diagram');
+    const from = reverse ? null : getPreviewRect(childId);
+    const savedGrid = grid.snapshot();
+    const panel = document.createElement('div');
+    panel.className = 'graph-scene';
+    panel.inert = true;
+    host.append(panel);
+    const incoming = mountGraph(panel, to);
+    if (reverse) incoming.viewport.center(parentId);
+    else if (from?.width && from.height) {
+      const relative = relativePoint(from, screen);
+      const bounds = incoming.viewport.contentBounds;
+      incoming.viewport.pin({ x: bounds.x + relative.x * bounds.width, y: bounds.y + relative.y * bounds.height }, screen);
+    }
+    // Start the new scene at the same grid projection. Only wheel input moves it.
+    grid.restore(savedGrid);
+    grid.rebase();
+    incoming.viewport.paint();
+    const driver = transitionGraph(host, previous, incoming.svg, null, null, reverse, {
+      duration,
+      fadeOnly: true,
+      interactive(arrived) {
+        transition = undefined;
+        if (!arrived) {
+          incoming.viewport.destroy();
+          panel.remove();
+          grid.restore(savedGrid);
+          return;
+        }
+        const previousView = source.snapshot();
+        source.destroy();
+        outgoing.remove();
+        onArrival({ to, panel, incoming, previousView });
+      },
+    });
+    transition = { driver, camera: incoming.viewport, direction: reverse ? 1 : -1 };
+  }
+
+  function handleWheel(event, bounds, delta) {
+    if (!transition) return false;
+    const forward = Math.sign(delta) === transition.direction;
+    transition.driver.aim(forward);
+    if (forward) {
+      transition.camera.wheel(event, bounds, delta, {
+        navigate: false, aroundCenter: transition.direction > 0,
+      });
+    }
+    return true;
+  }
+
+  return {
+    start,
+    handleWheel,
+    reverse() {
+      if (!transition) return false;
+      transition.driver.aim(false);
+      return true;
+    },
+    cancel() { transition?.driver.cancel(); },
+  };
+}
+return { createWheelTransitions };
+})();
+
+modules["src/navigation/wheel-navigation.mjs"] = (() => {
+const idleDelay = 180;
+const confirmationDistance = 88;
+const minimumPreviewTime = 45;
+
+function createWheelNavigation(showPreview) {
+  let candidate;
+  let distance = 0;
+  let timer;
+  let started = 0;
+  let lastTime = -Infinity;
+  let direction = 0;
+  let peak = 0;
+
+  function cancel() {
+    clearTimeout(timer);
+    if (candidate === undefined) return false;
+    candidate = undefined;
+    showPreview(undefined);
+    return true;
+  }
+
+  function sample(target, delta, time) {
+    const magnitude = Math.min(Math.abs(delta), 120);
+    const sign = Math.sign(delta);
+    if (time - lastTime >= idleDelay || sign !== direction) {
+      cancel();
+      peak = 0;
+    }
+    lastTime = time;
+    direction = sign;
+    peak = Math.max(peak, magnitude);
+    if (target === undefined) {
+      cancel();
+      return false;
+    }
+    if (target !== candidate) {
+      candidate = target;
+      started = time;
+      distance = 0;
+      showPreview(target);
+    } else if (magnitude >= Math.max(3, peak * .42)) {
+      // A weak tail from a trackpad should not confirm a preview on its own.
+      distance += magnitude;
+      if (distance >= confirmationDistance && time - started >= minimumPreviewTime) {
+        cancel();
+        return true;
+      }
+    }
+    clearTimeout(timer);
+    timer = setTimeout(cancel, idleDelay);
+    return false;
+  }
+
+  return { cancel, sample };
+}
+return { createWheelNavigation };
+})();
+
+modules["src/graph/pins.mjs"] = (() => {
+const palette = ['#ffbc78', '#daabff', '#86e4ad', '#ff9fbf', '#f0df82', '#8ae0e2', '#aab7ff', '#ff9d85'];
+
+function createPins() {
+  const groups = { library: new Map(), group: new Map(), module: new Map() };
+  // The overview identifies groups by both library and group name.
+  const key = node => node.type === 'group' ? JSON.stringify([node.library, node.group]) : node.id;
+  return {
+    color(node) { return groups[node.type].get(key(node)); },
+    entries(type) { return groups[type]; },
+    toggle(node) {
+      const pins = groups[node.type];
+      const id = key(node);
+      if (pins.delete(id)) return;
+      const used = new Set(Object.values(groups).flatMap(group => [...group.values()]));
+      const available = palette.filter(color => !used.has(color));
+      const choices = available.length ? available : palette;
+      pins.set(id, choices[Math.floor(Math.random() * choices.length)]);
+    },
+    clear() { for (const pins of Object.values(groups)) pins.clear(); },
+  };
+}
+return { createPins };
+})();
+
+modules["src/app/main.mjs"] = (() => {
+const { renderSelection } = modules["src/views/selection.mjs"];
+const { bindDatasetPicker } = modules["src/ui/dataset-picker.mjs"];
+const { ViewerHistory } = modules["src/navigation/history.mjs"];
+const { bindShortcuts } = modules["src/ui/shortcuts.mjs"];
+const { rememberCheckbox } = modules["src/ui/preferences.mjs"];
+const { updateControls, updateAtlasControls, initializeControlIcons, bindViewControls } = modules["src/ui/controls.mjs"];
+const { renderBoundaries } = modules["src/ui/boundaries.mjs"];
+const { createModel } = modules["src/data/model.mjs"];
+const { createDiagramScenes } = modules["src/views/diagram/scenes.mjs"];
+const { closeDetails, showConnection, showCycles, showNode, showPath } = modules["src/ui/details.mjs"];
+const { enableSearch } = modules["src/ui/search.mjs"];
+const { findPath } = modules["src/graph/relations.mjs"];
+const { screenRect, slideScene, transitionGraph } = modules["src/navigation/motion.mjs"];
+const { prepareAtlas } = modules["src/views/atlas/layout.mjs"];
+const { mountAtlas } = modules["src/views/atlas/view.mjs"];
+const { icon } = modules["src/ui/icons.mjs"];
+const { normalizeInput } = modules["src/data/input.mjs"];
+const { createZoomGrid } = modules["src/navigation/zoom-grid.mjs"];
+const { createWheelPace } = modules["src/navigation/wheel-pace.mjs"];
+const { createWheelTransitions } = modules["src/navigation/wheel-transitions.mjs"];
+const { createWheelNavigation } = modules["src/navigation/wheel-navigation.mjs"];
+const { createPins } = modules["src/graph/pins.mjs"];
+
+const select = id => document.getElementById(id);
+const wheelSetting = select('wheel-navigation');
+const clickSetting = select('double-click-navigation');
+
+rememberCheckbox(wheelSetting);
+rememberCheckbox(clickSetting);
+let data = normalizeInput(JSON.parse(select('viewer-data').textContent));
+document.title = data.name + ' · Dependency Viewer';
+let model = createModel(data);
+const host = select('graph');
+const grid = createZoomGrid(select('graph-background'));
+const wheelPace = createWheelPace();
+const parentPreview = Symbol('parent');
+let previewCard;
+const wheelNavigation = createWheelNavigation(target => {
+  previewCard?.classList.remove('wheel-preview');
+  previewCard = typeof target === 'string' ? box(target) : undefined;
+  previewCard?.classList.add('wheel-preview');
+  select('back').classList.toggle('wheel-preview', target === parentPreview);
+});
+const history = new ViewerHistory(window.history);
+const diagram = createDiagramScenes(() => model);
+const pins = createPins();
+const status = select('status');
+let atlasLevel = 'Libraries';
+let viewport;
+let scene;
+let stopTransition;
+let atlasTask;
+let atlasArrangement;
+let tabRequest = 0;
+let generation = 0;
+let pathStart;
+let graphTabState;
+let atlasTabState;
+let pendingWheelBack;
+
+function entry() { return history.current; }
+
+function box(id, panel = host) {
+  return [...panel.querySelectorAll('.card[data-node-id]')]
+    .find(card => card.dataset.nodeId === id && !card.closest('.departing'));
+}
+
+function inspectNode(node, pointerX) {
+  entry().selected = node.id;
+  entry().path = null;
+  emphasize();
+  showNode(node, model.details(node), pointerX);
+}
+
+function dismissDetails() {
+  closeDetails();
+  entry().selected = null;
+  entry().path = null;
+  pathStart = null;
+  status.textContent = '';
+  emphasize();
+}
+
+function openNode(node, event, atlasOrigin) {
+  cancelMotion();
+  if (pathStart && scene.nodes.has(node.id)) {
+    const source = pathStart;
+    if (source === node.id) {
+      status.textContent = 'Choose a different node as the destination.';
+      return;
+    }
+    const path = findPath(scene.index, source, node.id);
+    pathStart = null;
+    entry().path = path;
+    entry().pathSource = source;
+    entry().selected = node.id;
+    emphasize();
+    showPath(path, scene.nodes, source, node.id);
+    status.textContent = path ? path.length + ' steps' : 'No directed path';
+    return;
+  }
+
+  const pointer = event?.type === 'click' && event.detail > 0;
+  const useDoubleClick = clickSetting.checked && pointer && node.next;
+  const focusedGraph = entry().focused && !entry().location.atlas;
+  if (!node.next || focusedGraph || event?.shiftKey || (useDoubleClick && event.detail !== 2)) {
+    inspectNode(node, useDoubleClick ? event.clientX : undefined);
+    return;
+  }
+  if (useDoubleClick) entry().selected = null;
+  else if (atlasOrigin === undefined) entry().selected = node.id;
+  entry().path = null;
+  const miniature = box(node.id)?.querySelector('.miniature');
+  const from = miniature ? screenRect(miniature) : null;
+  push(node.next, { from }, { atlasOrigin });
+}
+
+function wheelNavigate({ delta, time, node, viewportShare, zoomedOut, screen }) {
+  const duration = wheelPace(delta, time);
+  const { library, group } = entry().location;
+  const allowed = wheelSetting.checked && !pathStart && !entry().focused;
+  const target = !allowed ? undefined
+    : delta < 0 && node?.next && viewportShare >= .48 ? node.id
+    : delta > 0 && library && zoomedOut >= 1.55 ? parentPreview : undefined;
+  if (!wheelNavigation.sample(target, delta, time)) return;
+
+  const reverse = target === parentPreview;
+  const location = reverse ? group === undefined ? {} : { library } : node.next;
+  const last = history.previous;
+  const backEntry = reverse && last && !last.location.atlas &&
+    last.location.library === location.library && last.location.group === location.group ? last : null;
+  startWheelTransition(backEntry ?? { location }, {
+    reverse, screen, parentId: group ?? library, childId: node?.id, duration,
+  });
+}
+
+function push(location, motion = {}, state = {}) {
+  cancelMotion();
+  const oldAtlas = Boolean(entry().location.atlas);
+  const newAtlas = Boolean(location.atlas);
+  entry().view = viewport?.snapshot();
+  history.push({ ...state, location });
+  render(oldAtlas !== newAtlas ? { slide: newAtlas ? 1 : -1 } : motion);
+}
+
+const back = () => history.back();
+const forward = () => history.forward();
+
+window.addEventListener('popstate', event => {
+  const next = history.resolve(event.state);
+  if (!next) return;
+  if (pendingWheelBack) {
+    const settled = pendingWheelBack;
+    pendingWheelBack = undefined;
+    if (event.state.index === settled.index) {
+      history.activate(event.state);
+      finishWheelScene(settled);
+      return;
+    }
+  }
+  cancelMotion();
+  const child = entry();
+  child.view = viewport?.snapshot();
+  const old = host.querySelector('.diagram');
+  const nextAtlas = Boolean(next.location.atlas);
+  const goingBack = event.state.index < history.index;
+  const parentId = !next.location.library ? child.location.library
+    : next.location.library === child.location.library && next.location.group === undefined ? child.location.group
+    : undefined;
+  const targetId = next.location.group ?? next.location.library;
+  const preview = targetId && box(targetId)?.querySelector('.miniature');
+  const motion = nextAtlas !== Boolean(child.location.atlas)
+    ? { slide: nextAtlas ? 1 : -1, atlasOrigin: nextAtlas && goingBack ? child.atlasOrigin : undefined }
+    : goingBack
+      ? { from: old && screenRect(old), parentId, reverse: true }
+      : { from: preview && screenRect(preview) };
+  history.activate(event.state);
+  render(motion);
+});
+
+function fromSearch(result) {
+  const { node, location } = result;
+  cancelMotion();
+  if (entry().location.atlas && node.type === 'module' && viewport) {
+    if (pathStart) openNode(node);
+    else {
+      entry().selected = node.id;
+      entry().focused = true;
+      entry().path = null;
+      emphasize();
+    }
+    viewport.focus(node.id);
+    status.textContent = node.id;
+    return;
+  }
+  if (pathStart && scene.nodes.has(node.id) && JSON.stringify(location) === JSON.stringify(entry().location)) {
+    openNode(node);
+    return;
+  }
+  const changed = JSON.stringify(location) !== JSON.stringify(entry().location);
+  if (changed) push(location);
+  entry().selected = node.id;
+  entry().focused = true;
+  entry().path = null;
+  emphasize();
+  viewport.focus(node.id);
+  status.textContent = node.id;
+}
+
+function cancelMotion() {
+  wheelNavigation.cancel();
+  wheelTransitions.cancel();
+  stopTransition?.();
+  stopTransition = null;
+}
+
+function refreshControls() {
+  updateControls(select, host, entry(), { data, model, canGoBack: history.canGoBack, pathStart, atlasLevel });
+}
+
+function showBoundaries(location, graph) {
+  renderBoundaries(select('boundary'), host, model.boundaries(location, graph));
+}
+
+function emphasize() {
+  renderSelection(host, viewport, scene, entry());
+  refreshControls();
+}
+
+function render(motion = null) {
+  const run = ++generation;
+  cancelMotion();
+  const state = entry();
+  const location = state.location;
+  if (location.atlas && !atlasArrangement) {
+    status.textContent = 'Preparing overview…';
+    prepareAtlasOnce().then(() => {
+      if (run === generation) render(motion);
+    });
+    return;
+  }
+  const outgoing = motion ? host.firstElementChild : null;
+  const previous = outgoing?.querySelector('.diagram');
+  const anchor = motion?.from && {
+    x: motion.from.left + motion.from.width / 2, y: motion.from.top + motion.from.height / 2,
+  };
+  const previousGrid = grid.rebase(outgoing && previous && !location.atlas && !motion.slide
+    ? motion.reverse ? 1 / 1.18 : 1.18 : 1, anchor ?? { x: host.clientWidth / 2, y: host.clientHeight / 2 });
+  viewport?.destroy();
+  viewport = null;
+  pathStart = null;
+  status.textContent = '';
+  closeDetails();
+  select('boundary').hidden = true;
+  refreshControls();
+  const panel = document.createElement('div');
+  panel.className = 'graph-scene';
+  host.replaceChildren(panel);
+  if (location.atlas) {
+    const graph = model.full();
+    scene = { index: graph.index, nodes: new Map(graph.nodes.map(node => [node.id, node])) };
+    viewport = mountAtlas(panel, atlasArrangement, graph, model.view().edges, {
+        pins,
+        cameraScale: grid.update,
+        level(level) { atlasLevel = level; updateAtlasControls(select, entry(), atlasLevel); },
+        mode(level) { state.fixedLevel = level; updateAtlasControls(select, entry(), atlasLevel); },
+        inspect: showConnection,
+        select(node, event) {
+          const target = node.type === 'module' ? node : { ...node, next: { library: node.library, group: node.group } };
+          openNode(target, event, node.id);
+        },
+    });
+    if (state.view) viewport.restore(state.view);
+    viewport.setLevel(state.fixedLevel ?? null);
+    viewport.showLines(Boolean(state.showLines));
+    if (motion?.atlasOrigin !== undefined) viewport.center(motion.atlasOrigin);
+    emphasize();
+    viewport.paint();
+    animateScene(outgoing, previous, panel, null, motion, previousGrid);
+    return;
+  }
+
+  const graphScene = mountGraph(panel, state);
+  ({ viewport, scene } = graphScene);
+  if (motion?.reverse && motion.parentId !== undefined) viewport.center(motion.parentId);
+  if (location.library) showBoundaries(location, graphScene.graph);
+  emphasize();
+  animateScene(outgoing, previous, panel, graphScene.svg, motion, previousGrid);
+}
+
+function mountGraph(panel, state) {
+  return diagram.mount(panel, state, {
+    pins, openNode, inspectNode, cameraScale: grid.update, wheelNavigate,
+    inspectEdge(edge, source, target) {
+      state.path = [edge];
+      state.pathSource = edge.source;
+      state.selected = edge.target;
+      emphasize();
+      showConnection(edge, source, target);
+    },
+  });
+}
+
+function previewRect(card) {
+  const miniature = card?.querySelector('.miniature');
+  return miniature ? screenRect(miniature) : card?.getBoundingClientRect();
+}
+
+const wheelTransitions = createWheelTransitions({
+  host, grid, mountGraph,
+  getViewport: () => viewport,
+  getPreviewRect: id => previewRect(box(id)),
+  onArrival({ to, panel, incoming, previousView }) {
+    entry().view = previousView;
+    ({ viewport, scene } = incoming);
+    closeDetails();
+    if (to === history.previous) {
+      to.view = viewport.snapshot();
+      pendingWheelBack = { index: history.index - 1, panel, graph: incoming.graph };
+      history.back();
+    } else {
+      history.push(to);
+      finishWheelScene({ panel, graph: incoming.graph });
+    }
+  },
+});
+
+function startWheelTransition(to, motion) {
+  cancelMotion();
+  wheelTransitions.start(to, motion);
+}
+
+function finishWheelScene({ panel, graph }) {
+  panel.inert = false;
+  select('boundary').hidden = true;
+  if (entry().location.library) showBoundaries(entry().location, graph);
+  emphasize();
+}
+
+function animateScene(outgoing, previous, panel, svg, motion, previousGrid) {
+  if (!outgoing || !motion) return;
+  if (motion.slide || !previous || !svg) {
+    host.prepend(outgoing);
+    stopTransition = slideScene(outgoing, panel, motion.slide ?? -1);
+  } else {
+    const destination = motion.reverse ? previewRect(box(motion.parentId)) : screenRect(svg);
+    stopTransition = transitionGraph(host, previous, svg, motion.from, destination, motion.reverse, {
+      animateGrid: timing => grid.animateFrom(previousGrid, timing),
+    });
+  }
+}
+
+const openSearch = enableSearch(query => model.search(query), fromSearch);
+select('search-glyph').append(icon('search'));
+function prepareAtlasOnce() {
+  if (atlasArrangement) return Promise.resolve(atlasArrangement);
+  if (!atlasTask) {
+    const currentModel = model;
+    atlasTask = prepareAtlas(model.full().nodes, model.view().nodes).then(arrangement => {
+      if (currentModel === model) atlasArrangement = arrangement;
+      return arrangement;
+    });
+  }
+  return atlasTask;
+}
+
+async function switchTab(atlas) {
+  const request = ++tabRequest;
+  const initial = entry();
+  const state = entry();
+  if (Boolean(state.location.atlas) === atlas) {
+    if (status.textContent === 'Preparing overview…') status.textContent = '';
+    return;
+  }
+  if (atlas && !atlasArrangement) {
+    status.textContent = 'Preparing overview…';
+    await prepareAtlasOnce();
+    if (request !== tabRequest || initial !== entry()) return;
+  }
+  const saved = { ...state, view: viewport?.snapshot() };
+  if (atlas) graphTabState = saved;
+  else atlasTabState = saved;
+  const next = atlas ? atlasTabState : graphTabState;
+  push(next?.location ?? (atlas ? { atlas: true } : {}), {}, next);
+}
+select('focus').onclick = () => {
+  entry().focused = !entry().focused;
+  entry().path = null;
+  status.textContent = entry().focused && !entry().selected ? 'Choose a node to focus on.' : '';
+  emphasize();
+};
+select('depth').onclick = () => {
+  entry().depth = entry().depth === 2 ? 1 : 2;
+  emphasize();
+};
+select('path').onclick = () => {
+  const state = entry();
+  closeDetails();
+  if (state.path) state.path = null;
+  pathStart = pathStart ? null : state.selected;
+  status.textContent = pathStart ? 'Choose the path destination in this view.' : '';
+  emphasize();
+};
+function replaceDataset(imported, importedModel) {
+  data = imported;
+  document.title = data.name + ' · Dependency Viewer';
+  model = importedModel;
+  history.reset();
+  atlasTask = null;
+  atlasArrangement = null;
+  tabRequest++;
+  graphTabState = atlasTabState = undefined;
+  diagram.clear();
+  pins.clear();
+  render({ slide: 1 });
+}
+
+bindDatasetPicker(select('open-data'), select('data-file'), {
+  accept: replaceDataset,
+  reportError(message) { status.textContent = message; },
+});
+select('cycles').onclick = () => {
+  const graph = model.full();
+  const byId = new Map(graph.nodes.map(node => [node.id, node]));
+  showCycles(model.cycles().map(group => group.map(id => byId.get(id))), id => {
+    const node = byId.get(id);
+    fromSearch({ node, location: { library: node.library, group: node.group } });
+  });
+};
+host.addEventListener('pointerdown', cancelMotion, { capture: true });
+// Some browsers deliver a whole wheel gesture to its original target. Keep
+// routing on the persistent graph container as the scene underneath changes.
+host.addEventListener('wheel', event => {
+  if (!viewport) return;
+  event.preventDefault();
+  const bounds = host.getBoundingClientRect();
+  const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? bounds.height : 1;
+  const delta = event.deltaY * unit;
+  if (!delta) return;
+  if (wheelTransitions.handleWheel(event, bounds, delta)) return;
+  viewport.wheel(event, bounds, delta, {
+    navigate: !pendingWheelBack, aroundCenter: Boolean(pendingWheelBack),
+  });
+}, { passive: false });
+function escape() {
+  if (wheelTransitions.reverse() || wheelNavigation.cancel()) {
+    return;
+  }
+  if (!select('details').hidden) dismissDetails();
+  else if (pathStart || entry().path || entry().selected) {
+    pathStart = null;
+    entry().path = null;
+    entry().selected = null;
+    status.textContent = '';
+    emphasize();
+  } else back();
+}
+
+bindShortcuts({
+  canGoBack: () => history.canGoBack,
+  canGoForward: () => history.canGoForward,
+  back, forward, openSearch, escape,
+  zoom(factor) { cancelMotion(); viewport?.zoom(factor); },
+  fit() { cancelMotion(); viewport?.fit(); },
+  openHelp() { select('help-dialog').showModal(); },
+});
+bindViewControls(select, {
+  switchTab, getEntry: entry, getViewport: () => viewport, back, dismissDetails,
+  refreshAtlasControls: () => updateAtlasControls(select, entry(), atlasLevel),
+  fit(animate) { cancelMotion(); viewport?.fit(animate); },
+  zoom(factor) { cancelMotion(); viewport?.zoom(factor); },
+});
+wheelSetting.addEventListener('change', cancelMotion);
+initializeControlIcons(select);
+render();
+return {  };
+})();
+</script>
+</body>
+</html>
